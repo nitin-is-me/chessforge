@@ -1,0 +1,540 @@
+@import 'tailwindcss';
+
+@theme {
+  --color-forge-bg: #08090b;
+  --color-forge-panel: #0e1013;
+  --color-forge-panel-2: #13161a;
+  --color-forge-panel-3: #191d22;
+  --color-forge-line: #23272e;
+  --color-forge-line-soft: #1a1e23;
+  --color-forge-text: #e9e7e3;
+  --color-forge-muted: #949aa3;
+  --color-forge-faint: #6b7280;
+  --color-forge-accent: #e3a455;
+  --color-forge-accent-strong: #f5bd72;
+  --color-forge-accent-dim: #8a6a3e;
+  --color-forge-danger: #d4635b;
+  --color-forge-success: #6fae8b;
+  --font-display: 'Iowan Old Style', 'Palatino Linotype', Palatino, 'Book Antiqua', Georgia, serif;
+  --font-sans: ui-sans-serif, system-ui, -apple-system, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
+}
+
+@layer base {
+  html {
+    color-scheme: dark;
+    -webkit-text-size-adjust: 100%;
+  }
+
+  body {
+    background-color: var(--color-forge-bg);
+    color: var(--color-forge-text);
+    font-family: var(--font-sans);
+    -webkit-font-smoothing: antialiased;
+    text-rendering: optimizeLegibility;
+    min-height: 100dvh;
+    background-image:
+      radial-gradient(900px 500px at 15% -10%, rgba(227, 164, 85, 0.09), transparent 60%),
+      radial-gradient(700px 400px at 100% 0%, rgba(112, 132, 168, 0.07), transparent 55%);
+    background-attachment: fixed;
+  }
+
+  h1,
+  h2,
+  h3 {
+    font-family: var(--font-display);
+    letter-spacing: -0.015em;
+    font-weight: 500;
+  }
+
+  ::selection {
+    background: rgba(227, 164, 85, 0.28);
+  }
+
+  :focus-visible {
+    outline: 2px solid var(--color-forge-accent);
+    outline-offset: 2px;
+  }
+
+  ::-webkit-scrollbar {
+    width: 10px;
+    height: 10px;
+  }
+  ::-webkit-scrollbar-thumb {
+    background: #2a2f36;
+    border-radius: 999px;
+    border: 3px solid transparent;
+    background-clip: content-box;
+  }
+  ::-webkit-scrollbar-track {
+    background: transparent;
+  }
+}
+
+@layer components {
+  .panel {
+    background: linear-gradient(180deg, rgba(23, 27, 32, 0.9), rgba(14, 16, 19, 0.92));
+    border: 1px solid var(--color-forge-line);
+    border-radius: 1rem;
+    box-shadow:
+      0 1px 0 rgba(255, 255, 255, 0.03) inset,
+      0 18px 40px -28px rgba(0, 0, 0, 0.9);
+  }
+
+  .panel-flat {
+    background: var(--color-forge-panel-2);
+    border: 1px solid var(--color-forge-line-soft);
+    border-radius: 0.875rem;
+  }
+
+  .btn {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 0.5rem;
+    border-radius: 0.7rem;
+    font-size: 0.875rem;
+    font-weight: 550;
+    padding: 0.55rem 0.95rem;
+    border: 1px solid transparent;
+    transition:
+      transform 120ms ease,
+      background-color 160ms ease,
+      border-color 160ms ease,
+      color 160ms ease,
+      box-shadow 160ms ease;
+    cursor: pointer;
+    white-space: nowrap;
+    user-select: none;
+  }
+  .btn:active {
+    transform: translateY(1px) scale(0.995);
+  }
+  .btn:disabled {
+    opacity: 0.45;
+    cursor: not-allowed;
+    transform: none;
+  }
+
+  .btn-primary {
+    background: linear-gradient(180deg, #f0b364, #d99a49);
+    color: #1a1205;
+    border-color: rgba(255, 220, 170, 0.5);
+    box-shadow:
+      0 1px 0 rgba(255, 255, 255, 0.35) inset,
+      0 10px 24px -14px rgba(227, 164, 85, 0.8);
+  }
+  .btn-primary:hover:not(:disabled) {
+    background: linear-gradient(180deg, #f7c078, #e2a453);
+  }
+
+  .btn-secondary {
+    background: var(--color-forge-panel-3);
+    color: var(--color-forge-text);
+    border-color: var(--color-forge-line);
+  }
+  .btn-secondary:hover:not(:disabled) {
+    background: #20252b;
+    border-color: #2e343c;
+  }
+
+  .btn-ghost {
+    background: transparent;
+    color: var(--color-forge-muted);
+    border-color: transparent;
+  }
+  .btn-ghost:hover:not(:disabled) {
+    color: var(--color-forge-text);
+    background: rgba(255, 255, 255, 0.04);
+  }
+
+  .btn-danger {
+    background: rgba(212, 99, 91, 0.12);
+    color: #e79a94;
+    border-color: rgba(212, 99, 91, 0.35);
+  }
+  .btn-danger:hover:not(:disabled) {
+    background: rgba(212, 99, 91, 0.2);
+  }
+
+  .chip {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.35rem;
+    font-size: 0.6875rem;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    font-weight: 600;
+    padding: 0.25rem 0.5rem;
+    border-radius: 999px;
+    border: 1px solid var(--color-forge-line);
+    color: var(--color-forge-muted);
+    background: rgba(255, 255, 255, 0.02);
+  }
+
+  .chip-accent {
+    color: var(--color-forge-accent);
+    border-color: rgba(227, 164, 85, 0.32);
+    background: rgba(227, 164, 85, 0.09);
+  }
+
+  .field {
+    width: 100%;
+    background: #0b0d10;
+    border: 1px solid var(--color-forge-line);
+    border-radius: 0.7rem;
+    padding: 0.65rem 0.85rem;
+    font-size: 0.9375rem;
+    color: var(--color-forge-text);
+    transition: border-color 140ms ease, box-shadow 140ms ease;
+  }
+  .field::placeholder {
+    color: var(--color-forge-faint);
+  }
+  .field:focus {
+    outline: none;
+    border-color: rgba(227, 164, 85, 0.55);
+    box-shadow: 0 0 0 3px rgba(227, 164, 85, 0.12);
+  }
+
+  .label {
+    display: block;
+    font-size: 0.75rem;
+    font-weight: 600;
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+    color: var(--color-forge-faint);
+    margin-bottom: 0.4rem;
+  }
+
+  .divider {
+    height: 1px;
+    background: linear-gradient(90deg, transparent, var(--color-forge-line), transparent);
+  }
+
+  .link {
+    color: var(--color-forge-accent);
+    text-underline-offset: 3px;
+  }
+  .link:hover {
+    text-decoration: underline;
+  }
+
+  .page {
+    width: 100%;
+    max-width: 1180px;
+    margin-inline: auto;
+    padding-inline: 1rem;
+  }
+
+  .clock {
+    font-variant-numeric: tabular-nums;
+    font-feature-settings: 'tnum' 1;
+    font-family: var(--font-sans);
+    letter-spacing: -0.02em;
+    transition: color 150ms ease;
+  }
+
+  .clock-active {
+    color: var(--color-forge-text);
+  }
+
+  .clock-low {
+    color: #e9a08c;
+  }
+
+  .clock-idle {
+    color: var(--color-forge-muted);
+  }
+
+  .stat-value {
+    font-family: var(--font-display);
+    font-size: 1.45rem;
+    line-height: 1.1;
+  }
+}
+
+/* ------------------------------------------------------------------ board */
+
+.board-theme-forge {
+  --board-light: #cbb79a;
+  --board-dark: #7c6549;
+  --board-border: rgba(255, 255, 255, 0.08);
+}
+
+.board-theme-midnight {
+  --board-light: #93a6ba;
+  --board-dark: #46586b;
+  --board-border: rgba(255, 255, 255, 0.08);
+}
+
+.board-theme-sand {
+  --board-light: #e6d8c2;
+  --board-dark: #b29a78;
+  --board-border: rgba(0, 0, 0, 0.2);
+}
+
+.board-area {
+  container-type: size;
+  position: relative;
+  width: 100%;
+}
+
+.board-shell {
+  position: relative;
+  width: 100%;
+  aspect-ratio: 1 / 1;
+  border-radius: 16px;
+  padding: 0;
+  background: var(--board-light, #cbb79a);
+  box-shadow:
+    0 0 0 1px rgba(255, 255, 255, 0.06),
+    0 30px 60px -30px rgba(0, 0, 0, 0.85),
+    0 2px 0 rgba(255, 255, 255, 0.06) inset;
+  overflow: hidden;
+  touch-action: manipulation;
+}
+
+/* Height-aware sizing: the board shrinks to fit the viewport so it is never cut
+   off at 100% browser zoom, and never grows past 620px on large screens. */
+.board-shell.board-fit {
+  --board-chrome: 240px;
+  width: min(100%, 620px, max(240px, calc(100dvh - var(--board-chrome))));
+  max-width: 100%;
+  max-height: 100%;
+  margin-inline: auto;
+}
+
+/* The game column owns the board size, so the board fills it exactly and the
+   player bars stay glued to the board edges. */
+.board-shell.board-fit-game {
+  width: 100%;
+  max-width: 100%;
+}
+
+.game-board-col {
+  /* Reserve the phone chrome (strip, clocks, move strip, dock) so the board
+     always has room to sit centred instead of being clipped. */
+  width: min(100%, 680px, max(170px, calc(100dvh - 325px)));
+  margin-inline: auto;
+}
+
+@media (min-width: 768px) {
+  .game-board-col {
+    width: min(100%, 680px, max(170px, calc(100dvh - 4rem - 128px)));
+  }
+}
+
+/* Game screen: locked to the viewport so board, clocks, chat and actions all
+   stay visible without scrolling. The header is hidden on phones (the game
+   page draws its own compact top strip), so the shell takes the full height. */
+.game-shell {
+  /* 4rem header + its 1px rule, so the last control is never clipped */
+  height: calc(100dvh - 4rem - 1px);
+  overflow: hidden;
+  overscroll-behavior: none;
+}
+
+@media (max-width: 767px) {
+  .game-shell {
+    height: 100dvh;
+  }
+}
+
+/* When board-area has a defined container height (desktop or constrained flex),
+   fit dynamically to both width and height without ANY overflow */
+@container (min-height: 150px) {
+  .board-shell.board-fit {
+    width: min(100cqw, 100cqh, 620px);
+    height: min(100cqw, 100cqh, 620px);
+  }
+
+}
+
+.board-shell .cg-wrap {
+  width: 100%;
+  height: 100%;
+}
+
+.board-shell cg-board {
+  background-image: conic-gradient(
+    var(--board-light, #cbb79a) 25%,
+    var(--board-dark, #7c6549) 0 50%,
+    var(--board-light, #cbb79a) 0 75%,
+    var(--board-dark, #7c6549) 0
+  );
+  background-size: 25% 25%;
+  background-position: 0 0;
+  border-radius: 16px;
+}
+
+.board-shell coords coord {
+  color: rgba(0, 0, 0, 0.42);
+  font-family: var(--font-sans);
+  font-weight: 700;
+  font-size: 11px;
+}
+
+.board-shell piece {
+  filter: drop-shadow(0 2px 2px rgba(0, 0, 0, 0.25));
+}
+
+.board-shell piece.dragging {
+  filter: drop-shadow(0 8px 12px rgba(0, 0, 0, 0.45));
+}
+
+.board-shell cg-board square.last-move,
+.board-shell square.last-move {
+  background-color: rgba(227, 164, 85, 0.35);
+}
+
+.board-shell cg-board square.selected,
+.board-shell square.selected {
+  background-color: rgba(227, 164, 85, 0.22);
+}
+
+.board-shell cg-board square.move-dest,
+.board-shell square.move-dest {
+  background: radial-gradient(rgba(20, 15, 8, 0.28) 21%, transparent 22%);
+}
+
+.board-shell cg-board square.oc.move-dest,
+.board-shell square.oc.move-dest {
+  background: radial-gradient(transparent 0%, transparent 78%, rgba(20, 15, 8, 0.24) 80%);
+}
+
+.board-shell cg-board square.check,
+.board-shell square.check {
+  background: radial-gradient(
+    ellipse at center,
+    rgba(212, 99, 91, 0.85) 0%,
+    rgba(212, 99, 91, 0.45) 35%,
+    transparent 72%
+  );
+}
+
+.board-shell cg-board square.current-premove,
+.board-shell square.current-premove {
+  background-color: rgba(227, 164, 85, 0.3);
+}
+
+.promotion-tray {
+  position: absolute;
+  inset: 0;
+  background: rgba(8, 9, 11, 0.55);
+  backdrop-filter: blur(3px);
+  display: grid;
+  place-items: center;
+  z-index: 20;
+}
+
+.promotion-options {
+  display: flex;
+  gap: 0.4rem;
+  padding: 0.5rem;
+  border-radius: 14px;
+  background: #101317;
+  border: 1px solid var(--color-forge-line);
+  box-shadow: 0 24px 60px -20px rgba(0, 0, 0, 0.9);
+}
+
+.promotion-options button {
+  width: 56px;
+  height: 56px;
+  border-radius: 10px;
+  font-size: 2rem;
+  line-height: 1;
+  display: grid;
+  place-items: center;
+  background: #171b20;
+  border: 1px solid transparent;
+  transition: background 120ms ease, border-color 120ms ease, transform 120ms ease;
+}
+
+.promotion-options button:hover {
+  background: #20262c;
+  border-color: rgba(227, 164, 85, 0.5);
+  transform: translateY(-2px);
+}
+
+/* --------------------------------------------------------------- utilities */
+
+.fade-in {
+  animation: fadeIn 320ms ease both;
+}
+
+@keyframes fadeIn {
+  from {
+    opacity: 0;
+    transform: translateY(6px);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+
+.pulse-dot {
+  position: relative;
+  display: inline-block;
+  width: 8px;
+  height: 8px;
+  border-radius: 999px;
+  background: var(--color-forge-success);
+}
+.pulse-dot::after {
+  content: '';
+  position: absolute;
+  inset: -4px;
+  border-radius: 999px;
+  border: 1px solid currentColor;
+  color: var(--color-forge-success);
+  opacity: 0.5;
+  animation: pulseRing 2s ease-out infinite;
+}
+
+@keyframes pulseRing {
+  0% {
+    transform: scale(0.6);
+    opacity: 0.6;
+  }
+  100% {
+    transform: scale(1.4);
+    opacity: 0;
+  }
+}
+
+.shimmer {
+  background: linear-gradient(90deg, #12151a 25%, #1a1f25 50%, #12151a 75%);
+  background-size: 200% 100%;
+  animation: shimmer 1.6s linear infinite;
+}
+
+@keyframes shimmer {
+  from {
+    background-position: 200% 0;
+  }
+  to {
+    background-position: -200% 0;
+  }
+}
+
+.hero-grain::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background-image: radial-gradient(rgba(255, 255, 255, 0.05) 1px, transparent 0);
+  background-size: 5px 5px;
+  opacity: 0.35;
+  pointer-events: none;
+  mask-image: radial-gradient(circle at 30% 20%, black, transparent 75%);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.001ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.001ms !important;
+  }
+}

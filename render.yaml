@@ -1,0 +1,21 @@
+services:
+  - type: web
+    name: chessforge
+    runtime: node
+    plan: starter
+    region: frankfurt
+    buildCommand: npm ci && npx prisma generate && npm run build
+    startCommand: npm start
+    healthCheckPath: /api/healthz
+    autoDeploy: true
+    envVars:
+      - key: NODE_ENV
+        value: production
+      - key: NODE_VERSION
+        value: 22.12.0
+      - key: SESSION_SECRET
+        generateValue: true
+      - key: DATABASE_URL
+        sync: false
+      - key: APP_ORIGIN
+        sync: false

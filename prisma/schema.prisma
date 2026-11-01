@@ -1,0 +1,288 @@
+// ChessForge data model.
+// Ratings are stored per time-control category so a player has one Glicko-2
+// rating for bullet, blitz, rapid and classical.
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  // Runtime traffic goes through the Supabase transaction-mode pooler (port
+  // 6543). Migrations need a session that can hold advisory locks, so they use
+  // DIRECT_URL instead.
+  url       = env("DATABASE_URL")
+  directUrl = env("DIRECT_URL")
+}
+
+enum TimeCategory {
+  BULLET
+  BLITZ
+  RAPID
+  CLASSICAL
+}
+
+enum GameStatus {
+  WAITING
+  STARTED
+  FINISHED
+  ABORTED
+}
+
+enum GameResult {
+  WHITE
+  BLACK
+  DRAW
+}
+
+enum EndReason {
+  CHECKMATE
+  RESIGNATION
+  TIMEOUT
+  STALEMATE
+  INSUFFICIENT_MATERIAL
+  FIFTY_MOVES
+  THREEFOLD_REPETITION
+  FIVEFOLD_REPETITION
+  SEVENTY_FIVE_MOVES
+  AGREEMENT
+  ABORTED
+  DISCONNECT
+}
+
+enum OpponentType {
+  HUMAN
+  COMPUTER
+}
+
+enum FriendshipStatus {
+  PENDING
+  ACCEPTED
+  DECLINED
+  BLOCKED
+}
+
+enum ChatState {
+  NONE
+  REQUESTED
+  OPEN
+  DECLINED
+}
+
+model User {
+  id           String    @id @default(uuid())
+  username     String    @unique
+  usernameLower String   @unique
+  displayName  String
+  isGuest      Boolean   @default(false)
+  passwordHash String?
+  email        String?   @unique
+  /// Set when the address is confirmed through a single-use email token.
+  emailVerifiedAt DateTime?
+  skill        String?
+  createdAt    DateTime  @default(now())
+  lastSeenAt   DateTime  @default(now())
+  deletedAt    DateTime?
+  settings     Json      @default("{}")
+
+  ratings      Rating[]
+  ratingEvents RatingChange[]
+  sessions     Session[]
+  whiteGames   Game[]         @relation("WhitePlayer")
+  blackGames   Game[]         @relation("BlackPlayer")
+  sentRequests Friendship[]    @relation("FriendRequester")
+  receivedReqs Friendship[]    @relation("FriendAddressee")
+  messages     Message[]
+  reportsMade  Report[]        @relation("Reporter")
+  reportsAbout Report[]        @relation("Reported")
+  emailTokens  EmailToken[]
+  blocksMade   Block[]         @relation("Blocker")
+  blockedBy    Block[]         @relation("Blocked")
+
+  @@index([lastSeenAt])
+}
+
+model Session {
+  id        String   @id // sha256 of the cookie token, never the token itself
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  createdAt DateTime @default(now())
+  expiresAt DateTime
+  userAgent String?
+
+  @@index([userId])
+  @@index([expiresAt])
+}
+
+model Rating {
+  userId       String
+  user         User         @relation(fields: [userId], references: [id], onDelete: Cascade)
+  category     TimeCategory
+  rating       Float        @default(1500)
+  rd           Float        @default(350)
+  volatility   Float        @default(0.06)
+  games        Int          @default(0)
+  updatedAt    DateTime     @updatedAt
+
+  @@id([userId, category])
+  @@index([category, rating])
+}
+
+model RatingChange {
+  id        String       @id @default(uuid())
+  userId    String
+  user      User         @relation(fields: [userId], references: [id], onDelete: Cascade)
+  gameId    String?
+  category  TimeCategory
+  before    Float
+  after     Float
+  delta     Float
+  rdAfter   Float
+  createdAt DateTime     @default(now())
+
+  @@index([userId, createdAt])
+}
+
+model Game {
+  id         String      @id
+  status     GameStatus  @default(WAITING)
+  rated      Boolean     @default(false)
+  category   TimeCategory
+  baseSec    Int
+  incSec     Int
+  opponent   OpponentType @default(HUMAN)
+  engineLevel Int?
+
+  whiteId    String?
+  white      User?       @relation("WhitePlayer", fields: [whiteId], references: [id])
+  blackId    String?
+  black      User?       @relation("BlackPlayer", fields: [blackId], references: [id])
+
+  whiteName  String?
+  blackName  String?
+  whiteRating Float?
+  blackRating Float?
+  whiteRatingAfter Float?
+  blackRatingAfter Float?
+
+  result     GameResult?
+  reason     EndReason?
+
+  fen        String
+  pgn        String?
+  plyCount   Int         @default(0)
+
+  whiteMs    Int
+  blackMs    Int
+  turn       String      @default("w")
+
+  createdAt  DateTime    @default(now())
+  startedAt  DateTime?
+  endedAt    DateTime?
+
+  moves      Move[]
+  chatLink   ChatLink?
+
+  @@index([whiteId, startedAt])
+  @@index([blackId, startedAt])
+  @@index([status])
+}
+
+model Move {
+  gameId       String
+  game         Game   @relation(fields: [gameId], references: [id], onDelete: Cascade)
+  ply          Int
+  uci          String
+  san          String
+  chargedMs    Int
+  clockAfterMs Int
+  lagCompMs    Int    @default(0)
+  createdAt    DateTime @default(now())
+
+  @@id([gameId, ply])
+}
+
+model ChatLink {
+  id          String    @id @default(uuid())
+  gameId      String    @unique
+  game        Game      @relation(fields: [gameId], references: [id], onDelete: Cascade)
+  state       ChatState @default(NONE)
+  requestedBy String?
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+  messages    Message[]
+}
+
+model Message {
+  id         String   @id @default(uuid())
+  chatLinkId String
+  chatLink   ChatLink @relation(fields: [chatLinkId], references: [id], onDelete: Cascade)
+  senderId   String
+  sender     User     @relation(fields: [senderId], references: [id], onDelete: Cascade)
+  body       String
+  createdAt  DateTime @default(now())
+
+  @@index([chatLinkId, createdAt])
+}
+
+model Friendship {
+  id          String           @id @default(uuid())
+  requesterId String
+  requester   User             @relation("FriendRequester", fields: [requesterId], references: [id], onDelete: Cascade)
+  addresseeId String
+  addressee   User             @relation("FriendAddressee", fields: [addresseeId], references: [id], onDelete: Cascade)
+  status      FriendshipStatus @default(PENDING)
+  createdAt   DateTime         @default(now())
+  updatedAt   DateTime         @updatedAt
+
+  @@unique([requesterId, addresseeId])
+  @@index([addresseeId, status])
+}
+
+model Report {
+  id         String   @id @default(uuid())
+  reporterId String
+  reporter   User     @relation("Reporter", fields: [reporterId], references: [id], onDelete: Cascade)
+  reportedId String
+  reported   User     @relation("Reported", fields: [reportedId], references: [id], onDelete: Cascade)
+  gameId     String?
+  reason     String
+  snapshot   String?
+  status     String   @default("open")
+  createdAt  DateTime @default(now())
+
+  @@index([status, createdAt])
+}
+
+enum EmailTokenKind {
+  VERIFY
+  RESET
+}
+
+/// Single-use, hashed email tokens. Only the SHA-256 of the token is stored.
+model EmailToken {
+  id        String         @id @default(uuid())
+  userId    String
+  user      User           @relation(fields: [userId], references: [id], onDelete: Cascade)
+  kind      EmailTokenKind
+  tokenHash String         @unique
+  expiresAt DateTime
+  usedAt    DateTime?
+  createdAt DateTime       @default(now())
+
+  @@index([userId, kind])
+  @@index([expiresAt])
+}
+
+/// Blocking is symmetric in effect but stored directionally, so we can tell
+/// who blocked whom for moderation.
+model Block {
+  blockerId String
+  blocker   User     @relation("Blocker", fields: [blockerId], references: [id], onDelete: Cascade)
+  blockedId String
+  blocked   User     @relation("Blocked", fields: [blockedId], references: [id], onDelete: Cascade)
+  createdAt DateTime @default(now())
+
+  @@id([blockerId, blockedId])
+  @@index([blockedId])
+}
