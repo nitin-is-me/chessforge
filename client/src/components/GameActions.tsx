@@ -8,11 +8,52 @@ interface GameActionsProps {
   snapshot: GameSnapshot;
   myColor: 'w' | 'b' | null;
   onCopyPgn?: () => void;
-  /** `menu` renders only the secondary actions (used by the mobile More sheet). */
+  onCopyLink?: () => void;
+  onFlip?: () => void;
+  copiedLink?: boolean;
+  copiedPgn?: boolean;
+  /** `menu` renders the grouped phone menu used by the mobile More sheet. */
   variant?: 'full' | 'menu';
 }
 
-export function GameActions({ snapshot, myColor, onCopyPgn, variant = 'full' }: GameActionsProps) {
+const GROUP = 'divide-y divide-forge-line-soft overflow-hidden rounded-xl border border-forge-line bg-forge-panel/70';
+const SECTION_LABEL = 'px-1 pb-1.5 text-[10px] font-semibold uppercase tracking-[0.14em] text-forge-faint';
+const ROW =
+  'flex min-h-11 w-full items-center justify-between gap-2 px-3 py-2.5 text-left text-[13px] font-medium text-forge-text transition-colors hover:bg-white/[0.04] active:bg-white/[0.06] disabled:opacity-40';
+
+function MenuRow({
+  onClick,
+  disabled,
+  tone = 'default',
+  children,
+}: {
+  onClick: () => void;
+  disabled?: boolean;
+  tone?: 'default' | 'danger';
+  children: React.ReactNode;
+}) {
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      disabled={disabled}
+      className={`${ROW} ${tone === 'danger' ? 'text-[#e79a94]' : ''}`}
+    >
+      <span className="min-w-0 truncate">{children}</span>
+    </button>
+  );
+}
+
+export function GameActions({
+  snapshot,
+  myColor,
+  onCopyPgn,
+  onCopyLink,
+  onFlip,
+  copiedLink = false,
+  copiedPgn = false,
+  variant = 'full',
+}: GameActionsProps) {
   const resign = useGame((state) => state.resign);
   const abort = useGame((state) => state.abort);
   const offerDraw = useGame((state) => state.offerDraw);
@@ -46,8 +87,8 @@ export function GameActions({ snapshot, myColor, onCopyPgn, variant = 'full' }: 
   const menu = variant === 'menu';
   const offerFromOpponent = snapshot.drawOfferBy && snapshot.drawOfferBy !== myColor;
   const offerFromMe = snapshot.drawOfferBy && snapshot.drawOfferBy === myColor;
-  const rematchFromOpponent = snapshot.rematch && snapshot.rematch.offerBy !== myColor;
-  const rematchFromMe = snapshot.rematch && snapshot.rematch.offerBy === myColor;
+  const rematchFromOpponent = snapshot.rematch && Boolean(myColor) && snapshot.rematch.offerBy !== myColor;
+  const rematchFromMe = snapshot.rematch && Boolean(myColor) && snapshot.rematch.offerBy === myColor;
   const opponentName =
     myColor === 'w' ? snapshot.black?.displayName : myColor === 'b' ? snapshot.white?.displayName : undefined;
 
@@ -121,40 +162,85 @@ export function GameActions({ snapshot, myColor, onCopyPgn, variant = 'full' }: 
       </div>
     ) : null;
 
-  if (finished) {
-    if (menu) {
+  // Board-level controls live in the phone menu: flipping and sharing are
+  // things a player wants while looking at the board, not hidden buttons.
+  const boardGroup = (
+    <section>
+      <p className={SECTION_LABEL}>Board</p>
+      <div className={GROUP}>
+        {onFlip ? <MenuRow onClick={onFlip}>Flip board</MenuRow> : null}
+        {onCopyLink ? (
+          <MenuRow onClick={onCopyLink}>{copiedLink ? 'Link copied' : 'Share game link'}</MenuRow>
+        ) : null}
+        {onCopyPgn ? <MenuRow onClick={onCopyPgn}>{copiedPgn ? 'PGN copied' : 'Copy PGN'}</MenuRow> : null}
+      </div>
+    </section>
+  );
+
+  const claimRows = (
+    <>
+      {snapshot.canClaim.threefold ? (
+        <MenuRow onClick={() => claim('threefold')}>Claim threefold repetition</MenuRow>
+      ) : null}
+      {snapshot.canClaim.fiftyMoves ? (
+        <MenuRow onClick={() => claim('fifty-moves')}>Claim fifty-move rule</MenuRow>
+      ) : null}
+      {snapshot.canClaim.absence ? (
+        <MenuRow onClick={() => claim('absence')}>Claim win — opponent left</MenuRow>
+      ) : null}
+    </>
+  );
+
+  if (menu) {
+    if (finished) {
       return (
-        <div className="space-y-2">
-          {isPlayer ? (
-            rematchFromOpponent ? (
-              <button type="button" className="btn btn-primary w-full" onClick={acceptRematch}>
-                Accept rematch
-              </button>
-            ) : (
-              <button
-                type="button"
-                className="btn btn-secondary w-full"
-                onClick={offerRematch}
-                disabled={Boolean(rematchFromMe)}
-              >
-                {rematchFromMe ? 'Rematch offered' : 'Offer rematch'}
-              </button>
-            )
-          ) : null}
-          <Link to="/" className="btn btn-secondary w-full">
-            New game
-          </Link>
-          {onCopyPgn ? (
-            <button type="button" className="btn btn-ghost w-full" onClick={onCopyPgn}>
-              Copy PGN
-            </button>
-          ) : null}
-          {reportButton}
+        <div className="space-y-3 pt-1">
+          {boardGroup}
+          <section>
+            <p className={SECTION_LABEL}>Game</p>
+            <div className={GROUP}>
+              {/* Rematch and New game live on the dock; this menu only holds
+                  secondary and destructive actions. */}
+              <MenuRow tone="danger" onClick={() => setReportOpen(true)}>
+                Report opponent
+              </MenuRow>
+            </div>
+          </section>
           {reportDialog}
         </div>
       );
     }
 
+    if (!isPlayer) {
+      return (
+        <div className="space-y-3 pt-1">
+          {boardGroup}
+          <p className="px-1 text-xs text-forge-muted">
+            You are watching this game. Moves are applied live from the server.
+          </p>
+        </div>
+      );
+    }
+
+    return (
+      <div className="space-y-3 pt-1">
+        {boardGroup}
+        <section>
+          <p className={SECTION_LABEL}>Game</p>
+          <div className={GROUP}>
+            {claimRows}
+            {running && snapshot.abortable ? <MenuRow onClick={abort}>Abort game</MenuRow> : null}
+            <MenuRow tone="danger" onClick={() => setReportOpen(true)}>
+              Report opponent
+            </MenuRow>
+          </div>
+        </section>
+        {reportDialog}
+      </div>
+    );
+  }
+
+  if (finished) {
     return (
       <div className="space-y-2">
         <div className="flex flex-wrap gap-2">
@@ -184,7 +270,7 @@ export function GameActions({ snapshot, myColor, onCopyPgn, variant = 'full' }: 
           </Link>
           {onCopyPgn ? (
             <button type="button" className="btn btn-ghost" onClick={onCopyPgn}>
-              Copy PGN
+              {copiedPgn ? 'PGN copied' : 'Copy PGN'}
             </button>
           ) : null}
         </div>
@@ -197,21 +283,6 @@ export function GameActions({ snapshot, myColor, onCopyPgn, variant = 'full' }: 
       <p className="text-center text-sm text-forge-muted">
         You are watching this game. Moves are applied live from the server.
       </p>
-    );
-  }
-
-  if (menu) {
-    return (
-      <div className="space-y-2">
-        {claims}
-        {running && snapshot.abortable ? (
-          <button type="button" className="btn btn-secondary w-full" onClick={abort}>
-            Abort game
-          </button>
-        ) : null}
-        {reportButton}
-        {reportDialog}
-      </div>
     );
   }
 

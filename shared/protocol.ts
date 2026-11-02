@@ -185,6 +185,10 @@ export interface ServerToClientEvents {
   'pool:paired': (payload: { gameId: string }) => void;
   'challenge:received': (challenge: ChallengeView) => void;
   'challenge:cancelled': (payload: { id: string }) => void;
+  /** Sent to the challenger when the other player declines. */
+  'challenge:declined': (payload: { id: string; by: string }) => void;
+  /** Sent to the challenger when nobody answered within the challenge window. */
+  'challenge:expired': (payload: { id: string }) => void;
   'challenge:accepted': (payload: { gameId: string }) => void;
   'friends:update': (payload: FriendsPayload) => void;
   'presence:update': (payload: { userId: string; online: boolean; playing: boolean }) => void;

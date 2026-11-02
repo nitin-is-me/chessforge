@@ -12,14 +12,20 @@ export default function FriendsPage() {
   const { user, guest } = useSession();
   const theme = usePreferences((state) => state.boardTheme);
   const [data, setData] = useState<FriendsPayload | null>(null);
+  const [loading, setLoading] = useState(true);
   const [username, setUsername] = useState('');
   const [message, setMessage] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [presetId, setPresetId] = useState('5+3');
   const [challenge, setChallenge] = useState<ChallengeView | null>(null);
   const [sentTo, setSentTo] = useState<string | null>(null);
+  const [sentPreset, setSentPreset] = useState<string | null>(null);
+  const [note, setNote] = useState<string | null>(null);
+  const [target, setTarget] = useState<FriendsPayload['friends'][number] | null>(null);
+  const [dialogPreset, setDialogPreset] = useState('5+3');
 
   const preset = PRESETS.find((item) => item.id === presetId) ?? PRESETS[5]!;
+  const dialogChosen = PRESETS.find((item) => item.id === dialogPreset) ?? preset;
 
   useEffect(() => {
     if (guest) return;
@@ -31,6 +37,9 @@ export default function FriendsPage() {
       })
       .catch((err) => {
         if (alive) setError(err instanceof ApiError ? err.message : 'Could not load friends');
+      })
+      .finally(() => {
+        if (alive) setLoading(false);
       });
     void connectSocket();
     return () => {
@@ -59,7 +68,18 @@ export default function FriendsPage() {
     const onCancelled = () => setChallenge(null);
     const onAccepted = (payload: { gameId: string }) => {
       setSentTo(null);
+      setSentPreset(null);
       navigate(`/g/${payload.gameId}`);
+    };
+    const onDeclined = (payload: { id: string; by: string }) => {
+      setSentTo(null);
+      setSentPreset(null);
+      setNote(`${payload.by} declined your challenge.`);
+    };
+    const onExpired = () => {
+      setSentTo(null);
+      setSentPreset(null);
+      setNote('That challenge expired without an answer.');
     };
 
     socket.on('friends:update', onUpdate);
@@ -67,12 +87,16 @@ export default function FriendsPage() {
     socket.on('challenge:received', onChallenge);
     socket.on('challenge:cancelled', onCancelled);
     socket.on('challenge:accepted', onAccepted);
+    socket.on('challenge:declined', onDeclined);
+    socket.on('challenge:expired', onExpired);
     return () => {
       socket.off('friends:update', onUpdate);
       socket.off('presence:update', onPresence);
       socket.off('challenge:received', onChallenge);
       socket.off('challenge:cancelled', onCancelled);
       socket.off('challenge:accepted', onAccepted);
+      socket.off('challenge:declined', onDeclined);
+      socket.off('challenge:expired', onExpired);
     };
   }, [navigate]);
 
@@ -145,18 +169,24 @@ export default function FriendsPage() {
   };
 
   const sendChallenge = async (friendUsername: string) => {
+    const chosen = dialogChosen;
+    setTarget(null);
     setSentTo(friendUsername);
+    setSentPreset(chosen.label);
+    setNote(`Challenge sent to ${friendUsername} · ${chosen.label}`);
     setMessage(null);
     setError(null);
     try {
       await connectSocket();
       socket.emit('challenge:send', {
         username: friendUsername,
-        baseSec: preset.baseSec,
-        incSec: preset.incSec,
+        baseSec: chosen.baseSec,
+        incSec: chosen.incSec,
         rated: false,
       });
     } catch {
+      setSentTo(null);
+      setSentPreset(null);
       setError('Could not reach the game server');
     }
   };
@@ -169,6 +199,7 @@ export default function FriendsPage() {
           <p className="mt-1 text-sm text-forge-muted">
             Challenge friends directly, or watch their presence while you play.
           </p>
+          {note ? <p className="mt-1 text-sm text-forge-accent-strong">{note}</p> : null}
         </div>
         <div className="flex gap-2">
           <select
@@ -221,14 +252,81 @@ export default function FriendsPage() {
         </div>
       ) : null}
 
+      {target ? (
+        <div
+          className="fixed inset-0 z-[60] flex items-center justify-center bg-black/60 p-4"
+          onClick={() => setTarget(null)}
+        >
+          <div
+            className="w-full max-w-md rounded-xl border border-forge-line bg-forge-panel-2 p-5"
+            onClick={(event) => event.stopPropagation()}
+          >
+            <h2 className="font-display text-lg">Challenge {target.displayName}</h2>
+            <p className="mt-1 text-sm text-forge-muted">
+              Pick a time control. Challenges are casual and use your {dialogChosen.category} rating of{' '}
+              {user?.ratings[dialogChosen.category]?.rating ?? 'unrated'}.
+            </p>
+            <div className="mt-4 grid grid-cols-3 gap-2">
+              {PRESETS.map((item) => (
+                <button
+                  key={item.id}
+                  type="button"
+                  onClick={() => setDialogPreset(item.id)}
+                  aria-pressed={dialogPreset === item.id}
+                  className={`rounded-lg border px-2 py-2 text-xs transition-colors ${
+                    dialogPreset === item.id
+                      ? 'border-forge-accent/60 bg-forge-accent/10 text-forge-accent'
+                      : 'border-forge-line text-forge-muted hover:text-forge-text'
+                  }`}
+                >
+                  <span className="block text-sm font-semibold">{item.label}</span>
+                  <span className="block text-[10px] uppercase tracking-[0.1em]">{item.category}</span>
+                </button>
+              ))}
+            </div>
+            <div className="mt-5 flex gap-2">
+              <button type="button" className="btn btn-secondary flex-1" onClick={() => setTarget(null)}>
+                Cancel
+              </button>
+              <button
+                type="button"
+                className="btn btn-primary flex-1"
+                onClick={() => void sendChallenge(target.username)}
+              >
+                Send challenge
+              </button>
+            </div>
+          </div>
+        </div>
+      ) : null}
+
       <div className="mt-4 grid gap-4 lg:grid-cols-[minmax(0,1fr)_340px]">
         <div className="space-y-4">
           <div className="panel overflow-hidden">
             <div className="flex items-center justify-between border-b border-forge-line-soft px-4 py-3">
               <h2 className="font-display text-lg">Friends</h2>
-              <span className="text-xs text-forge-faint">{data?.friends.length ?? 0}</span>
+              <span className="text-xs text-forge-faint">{data ? data.friends.length : '–'}</span>
             </div>
-            {!data || data.friends.length === 0 ? (
+            {!data ? (
+              loading ? (
+                <div className="px-4 py-4" aria-busy="true" aria-label="Loading friends">
+                  {[0, 1].map((row) => (
+                    <div key={row} className="flex animate-pulse items-center gap-3 py-2.5">
+                      <span className="h-2 w-2 rounded-full bg-forge-line" />
+                      <div className="flex-1 space-y-1.5">
+                        <span className="block h-2.5 w-28 rounded bg-forge-line-soft" />
+                        <span className="block h-2 w-16 rounded bg-forge-line-soft" />
+                      </div>
+                      <span className="h-6 w-16 rounded bg-forge-line-soft" />
+                    </div>
+                  ))}
+                </div>
+              ) : (
+                <p className="px-4 py-8 text-sm text-forge-muted">
+                  Could not load your friends. Refresh to try again.
+                </p>
+              )
+            ) : data.friends.length === 0 ? (
               <p className="px-4 py-8 text-sm text-forge-muted">
                 No friends yet. Add someone by username to challenge them directly.
               </p>
@@ -248,10 +346,13 @@ export default function FriendsPage() {
                   <button
                     type="button"
                     className="btn btn-secondary !px-2 !py-1 text-xs"
-                    onClick={() => void sendChallenge(friend.username)}
-                    disabled={!friend.online}
+                    onClick={() => {
+                      setDialogPreset(presetId);
+                      setTarget(friend);
+                    }}
+                    disabled={!friend.online || sentTo === friend.username}
                   >
-                    {sentTo === friend.username ? 'Sent' : 'Challenge'}
+                    {sentTo === friend.username ? (sentPreset ? `Sent · ${sentPreset}` : 'Sent') : 'Challenge'}
                   </button>
                   <button
                     type="button"

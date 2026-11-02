@@ -8,6 +8,10 @@
  * `start` and `end` are synthesized chords: PyChess's start cue was a loud burst
  * of pieces being dropped, and its only game-over cues were win/lose/draw
  * variants, which were tried and then dropped in favour of one neutral chord.
+ *
+ * `chat` and `notify` are synthesized too: the pack's notify clip read as a
+ * novelty blip, and one clip for both chat and game requests made them
+ * indistinguishable. They are now two calm, separate bell tones.
  */
 
 export type SoundName =
@@ -18,6 +22,7 @@ export type SoundName =
   | 'end'
   | 'start'
   | 'illegal'
+  | 'chat'
   | 'notify';
 
 const SAMPLE_FOR: Partial<Record<SoundName, string>> = {
@@ -26,7 +31,6 @@ const SAMPLE_FOR: Partial<Record<SoundName, string>> = {
   check: '/sounds/check.wav',
   castle: '/sounds/castle.wav',
   illegal: '/sounds/illegal.wav',
-  notify: '/sounds/notify.wav',
 };
 
 let muted = false;
@@ -107,6 +111,40 @@ function playChord(frequencies: number[], duration: number, gain: number, delay 
   master.connect(ctx.destination);
 }
 
+/**
+ * A soft mallet tone: sine fundamental with a quiet octave and twelfth, a short
+ * attack and an exponential tail. Reads as a calm interface chime rather than
+ * an arcade blip.
+ */
+function playBell(frequency: number, duration: number, gain: number, delay = 0): void {
+  const peak = gain * volume;
+  if (peak <= 0) return;
+  const ctx = ensureContext();
+  if (!ctx) return;
+
+  const start = ctx.currentTime + delay;
+  const master = ctx.createGain();
+  master.gain.setValueAtTime(0.0001, start);
+  master.gain.exponentialRampToValueAtTime(peak, start + 0.012);
+  master.gain.exponentialRampToValueAtTime(0.0001, start + duration);
+  master.connect(ctx.destination);
+
+  for (const [ratio, level] of [
+    [1, 1],
+    [2, 0.3],
+    [3, 0.07],
+  ] as const) {
+    const osc = ctx.createOscillator();
+    const amp = ctx.createGain();
+    osc.type = 'sine';
+    osc.frequency.setValueAtTime(frequency * ratio, start);
+    amp.gain.value = level / 1.37;
+    osc.connect(amp).connect(master);
+    osc.start(start);
+    osc.stop(start + duration + 0.02);
+  }
+}
+
 export function playSound(name: SoundName): void {
   if (muted) return;
 
@@ -119,6 +157,19 @@ export function playSound(name: SoundName): void {
     const node = base.cloneNode() as HTMLAudioElement;
     node.volume = volume;
     void node.play().catch(() => undefined);
+    return;
+  }
+
+  if (name === 'chat') {
+    // One short, quiet note: a message arrived, nothing is wrong.
+    playBell(1046.5, 0.22, 0.085);
+    return;
+  }
+
+  if (name === 'notify') {
+    // Rising fifth (E5 → B5): neutral "this needs an answer" without nagging.
+    playBell(659.25, 0.26, 0.09);
+    playBell(987.77, 0.45, 0.08, 0.1);
     return;
   }
 

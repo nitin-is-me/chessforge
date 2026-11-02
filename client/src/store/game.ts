@@ -156,9 +156,8 @@ export const useGame = create<GameState>((set, get) => {
             },
           },
         };
-      });
-      playSound('notify');
-    } else if (payload.state) {
+      });        playSound('chat');
+      } else if (payload.state) {
       set((state) => {
         const snapshot = state.snapshot;
         if (!snapshot) return {};
@@ -172,7 +171,7 @@ export const useGame = create<GameState>((set, get) => {
           },
         };
       });
-      if (payload.state === 'requested') playSound('notify');
+      if (payload.state === 'requested') playSound('chat');
     }
   });
 

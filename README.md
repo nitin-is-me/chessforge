@@ -151,6 +151,7 @@ every existing session.
 | 4.0.0   | **01-Nov-2026** | Final pass: the homepage now shows every time control instead of pushing a single 10+5, private games let you pick the mode, the footer credits the author and links the repo. Done.     |
 | 4.0.1   | **02-Nov-2026** | Phone pass. The board was dropping frames because of a fixed background, a shadow filter on all 32 pieces and a redraw on every render, so all of that went. Coordinates moved into a gutter (the letters were being painted on top of the bottom rank), and the computer page lost its duplicate start buttons. |
 | 4.1.0   | **02-Nov-2026** | Real sounds at last: recorded move, capture, check and castle clips instead of oscillators, and the loud piece-dropping start cue replaced with the old quiet chord. Games end with a colour-coded result banner that also shows the rating change, and the computer takes a beat to think instead of answering on the same frame as your move. |
+| 4.2.0   | **02-Nov-2026** | UX pass. The game screen is now one locked viewport on phone and desktop, with no page scrolling: result banners can be dismissed, the phone dock carries the main actions and the More sheet is grouped and thumb-sized, chat and draw offers finally sound different, and there's a fullscreen toggle. The computer screen uses the same fixed layout, challenges ask which time control to send, a declined challenge tells the challenger instead of leaving "Sent" hanging, and the friends list shows a skeleton instead of claiming you have no friends while it loads. |
 
 ## Running it yourself
 

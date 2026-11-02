@@ -669,7 +669,9 @@ export function attachSockets(io: IO, deps: SocketDeps): { dispose: () => void }
       const challenge = challenges.get(id);
       if (!challenge || challenge.toId !== user.id) return;
       challenges.delete(id);
-      io.to(`user:${challenge.fromId}`).emit('challenge:cancelled', { id });
+      // The addressee declined: tell the challenger explicitly so their pending
+      // "Sent" state clears instead of looking unanswered.
+      io.to(`user:${challenge.fromId}`).emit('challenge:declined', { id, by: user.displayName });
     });
 
     socket.on('presence:ping', () => {
@@ -702,6 +704,7 @@ export function attachSockets(io: IO, deps: SocketDeps): { dispose: () => void }
       if (challenge.createdAt < cutoff) {
         challenges.delete(id);
         io.to(`user:${challenge.toId}`).emit('challenge:cancelled', { id });
+        io.to(`user:${challenge.fromId}`).emit('challenge:expired', { id });
       }
     }
   }, 30_000);

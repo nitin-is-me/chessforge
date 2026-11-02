@@ -1,4 +1,6 @@
 import type { ReactNode } from 'react';
+import type { EndReason } from '@shared/protocol';
+import { reasonText } from '../lib/format';
 
 type Tone = 'win' | 'loss' | 'draw' | 'neutral';
 
@@ -13,6 +15,8 @@ interface ResultBannerProps {
   /** Opponent name, used for "The engine won" style wording. */
   opponentLabel?: string;
   children?: ReactNode;
+  /** Tighter type scale for the phone menu sheet. */
+  compact?: boolean;
   className?: string;
 }
 
@@ -57,12 +61,16 @@ export function ResultBanner({
   delta = null,
   opponentLabel,
   children,
+  compact = false,
   className = '',
 }: ResultBannerProps) {
   let tone: Tone = 'neutral';
   let title = 'Game over';
 
-  if (result === 'draw') {
+  if (reason === 'aborted') {
+    tone = 'neutral';
+    title = 'Game aborted';
+  } else if (result === 'draw') {
     tone = 'draw';
     title = 'Draw';
   } else if (result === 'white' || result === 'black') {
@@ -80,22 +88,30 @@ export function ResultBanner({
   }
 
   const styles = TONE[tone];
-  const detail = humanise(reason);
+  // Same wording as the board overlay: "on time", not "by timeout".
+  const mapped = reason ? reasonText(reason as EndReason) : '';
+  const detail = reason === 'aborted' ? null : mapped || humanise(reason);
   const showDelta = typeof delta === 'number' && delta !== 0;
 
   return (
-    <div className={`panel border p-4 ${styles.surface} ${className}`} role="status">
+    <div className={`panel border ${compact ? 'p-3' : 'p-4'} ${styles.surface} ${className}`} role="status">
       <div className="flex items-start gap-3">
         <span
-          className={`grid h-9 w-9 shrink-0 place-items-center rounded-full text-lg font-semibold ${styles.badge}`}
+          className={`grid shrink-0 place-items-center rounded-full font-semibold ${styles.badge} ${
+            compact ? 'h-8 w-8 text-base' : 'h-9 w-9 text-lg'
+          }`}
           aria-hidden
         >
           {styles.mark}
         </span>
         <div className="min-w-0">
-          <h2 className={`font-display text-2xl leading-tight ${styles.title}`}>{title}</h2>
-          <p className="mt-0.5 flex flex-wrap items-center gap-2 text-sm text-forge-muted">
-            <span>{detail ? `by ${detail}` : 'No result recorded'}</span>
+          <h2 className={`font-display leading-tight ${compact ? 'text-lg' : 'text-2xl'} ${styles.title}`}>{title}</h2>
+          <p
+            className={`mt-0.5 flex flex-wrap items-center gap-2 text-forge-muted ${
+              compact ? 'text-xs' : 'text-sm'
+            }`}
+          >
+            <span>{detail ?? 'No result recorded'}</span>
             {showDelta ? (
               <span
                 className={`rounded-full px-1.5 py-0.5 text-[11px] font-semibold tabular-nums ${
