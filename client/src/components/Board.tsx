@@ -66,14 +66,34 @@ export function Board({
     return map;
   }, [fen, canMove]);
 
+  // Chessground keeps one event binding while the props underneath it change.
+  const latest = useRef({ fen, onMove });
+  useEffect(() => {
+    latest.current = { fen, onMove };
+  });
+
+  // These are the only inputs that justify a board redraw. Every parent render
+  // (chat, presence, offer pills) used to call set() again, which restarts piece
+  // animations mid-move — the biggest source of dropped frames on phones.
+  const configKey = [
+    fen,
+    orientation,
+    cgTurn,
+    check ? '1' : '0',
+    lastMove ? `${lastMove[0]}${lastMove[1]}` : '',
+    canMove ? '1' : '0',
+  ].join('|');
+  const appliedKeyRef = useRef<string | null>(null);
+
   useEffect(() => {
     const host = hostRef.current;
     if (!host) return;
 
     const handleAfter = (from: Key, to: Key) => {
-      if (!onMove) return;
+      const { fen: currentFen, onMove: emit } = latest.current;
+      if (!emit) return;
       try {
-        const chess = new Chess(fen);
+        const chess = new Chess(currentFen);
         const promotions = chess
           .moves({ verbose: true })
           .filter((move) => move.from === from && move.to === to && move.promotion);
@@ -84,7 +104,7 @@ export function Board({
       } catch {
         // Fall through: the server validates anyway.
       }
-      onMove(`${from}${to}`);
+      emit(`${from}${to}`);
     };
 
     const config: Config = {
@@ -111,14 +131,24 @@ export function Board({
 
     if (!apiRef.current) {
       apiRef.current = Chessground(host, config);
-    } else {
+      appliedKeyRef.current = configKey;
+    } else if (appliedKeyRef.current !== configKey) {
       apiRef.current.set(config);
+      appliedKeyRef.current = configKey;
     }
+    // `configKey` already covers every prop this config is built from.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [configKey]);
 
+  // The observer lives for the whole mount; rebuilding it on every update was
+  // pointless work on each move.
+  useEffect(() => {
+    const host = hostRef.current;
+    if (!host) return;
     const observer = new ResizeObserver(() => apiRef.current?.redrawAll());
     observer.observe(host);
     return () => observer.disconnect();
-  }, [fen, orientation, cgTurn, check, lastMove, canMove, destinations, onMove]);
+  }, []);
 
   useEffect(
     () => () => {

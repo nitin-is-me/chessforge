@@ -35,7 +35,10 @@
     background-image:
       radial-gradient(900px 500px at 15% -10%, rgba(227, 164, 85, 0.09), transparent 60%),
       radial-gradient(700px 400px at 100% 0%, rgba(112, 132, 168, 0.07), transparent 55%);
-    background-attachment: fixed;
+    background-repeat: no-repeat;
+    /* Deliberately NOT `background-attachment: fixed`: on mobile that forces a
+       full-viewport background repaint every scroll frame, which alone is
+       enough to make pages with a board feel like they are dragging. */
   }
 
   h1,
@@ -284,14 +287,19 @@
   width: 100%;
   aspect-ratio: 1 / 1;
   border-radius: 16px;
-  padding: 0;
-  background: var(--board-light, #cbb79a);
-  box-shadow:
-    0 0 0 1px rgba(255, 255, 255, 0.06),
-    0 30px 60px -30px rgba(0, 0, 0, 0.85),
-    0 2px 0 rgba(255, 255, 255, 0.06) inset;
+  /* Gutter for the coordinate labels, which live outside the squares instead
+     of being painted on top of the bottom rank. */
+  padding: 14px;
+  background: transparent;
+  box-shadow: 0 16px 34px -24px rgba(0, 0, 0, 0.8);
   overflow: hidden;
   touch-action: manipulation;
+}
+
+/* chessground's host div has no intrinsic height of its own, so hand it the
+   padded content box; the wrap and board then fill the frame at that size. */
+.board-shell > div {
+  height: 100%;
 }
 
 /* Height-aware sizing: the board shrinks to fit the viewport so it is never cut
@@ -364,22 +372,66 @@
   );
   background-size: 25% 25%;
   background-position: 0 0;
-  border-radius: 16px;
+  border-radius: 10px;
+  box-shadow: 0 0 0 1px rgba(255, 255, 255, 0.07);
+}
+
+/* The labels sit in the 14px gutter around the squares: never on top of a
+   piece, and their contrast does not depend on the colour of the square they
+   would otherwise cover. */
+.board-shell coords {
+  font-family: var(--font-sans);
+  font-weight: 700;
+  font-size: 10px;
+  opacity: 1;
 }
 
 .board-shell coords coord {
-  color: rgba(0, 0, 0, 0.42);
-  font-family: var(--font-sans);
-  font-weight: 700;
-  font-size: 11px;
+  color: var(--color-forge-faint);
 }
 
-.board-shell piece {
-  filter: drop-shadow(0 2px 2px rgba(0, 0, 0, 0.25));
+/* chessground anchors the rank column at left: 4px with top: -20px and nudges
+   every label down 39%, which is why the numbers used to drift onto the board. */
+.board-shell coords.ranks {
+  left: -14px;
+  top: 0;
+  width: 14px;
+  height: 100%;
+  flex-flow: column-reverse;
 }
 
+.board-shell coords.ranks coord {
+  flex: 1 1 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 14px;
+  transform: none;
+}
+
+/* Base styles anchor the file row at left: 24px while keeping width: 100%, so
+   every letter sat right of its file and the last one spilled off the board. */
+.board-shell coords.files {
+  left: 0;
+  bottom: -14px;
+  width: 100%;
+  height: 14px;
+  align-items: center;
+}
+
+.board-shell coords.files coord {
+  flex: 1 1 0;
+  min-width: 0;
+  text-align: center;
+  line-height: 1;
+}
+
+/* No shadow filter on resting pieces. A drop-shadow on all 32 pieces means a
+   filter pass per piece whenever chessground animates a move, and low-end
+   phones cannot keep 60fps through that — it was the main reason moves looked
+   choppy. Only the piece being dragged pays for a shadow now. */
 .board-shell piece.dragging {
-  filter: drop-shadow(0 8px 12px rgba(0, 0, 0, 0.45));
+  filter: drop-shadow(0 3px 4px rgba(0, 0, 0, 0.4));
 }
 
 .board-shell cg-board square.last-move,

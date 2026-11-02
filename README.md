@@ -149,6 +149,7 @@ every existing session.
 | 3.7.0   | **29-Oct-2026** | Docker + Render config, a smoke test, a socket load-test harness and a UI fixture script.                                                                                              |
 | 3.8.0   | **31-Oct-2026** | Integration tests against a real Postgres (skipped unless `RUN_DB_TESTS=1`), covering rating commits and single-use email tokens.                                                       |
 | 4.0.0   | **01-Nov-2026** | Final pass: the homepage now shows every time control instead of pushing a single 10+5, private games let you pick the mode, the footer credits the author and links the repo. Done.     |
+| 4.0.1   | **02-Nov-2026** | Phone pass. The board was dropping frames because of a fixed background, a shadow filter on all 32 pieces and a redraw on every render, so all of that went. Coordinates moved into a gutter (the letters were being painted on top of the bottom rank), and the computer page lost its duplicate start buttons. |
 
 ## Running it yourself
 

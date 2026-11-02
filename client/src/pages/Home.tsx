@@ -188,8 +188,8 @@ export default function HomePage() {
           </div>
 
           <div className="relative mx-auto w-full max-w-[460px]">
-            <div className="pointer-events-none absolute -inset-8 rounded-[2rem] bg-forge-accent/10 blur-3xl" />
-            <div className="relative rounded-[20px] border border-forge-line bg-forge-panel p-3 shadow-[0_40px_80px_-40px_rgba(0,0,0,0.9)]">
+            <div className="pointer-events-none absolute -inset-8 rounded-[2rem] bg-[radial-gradient(closest-side,rgba(227,164,85,0.16),transparent)]" />
+            <div className="relative rounded-[20px] border border-forge-line bg-forge-panel p-3 shadow-[0_24px_44px_-30px_rgba(0,0,0,0.85)]">
               <Board fen={HERO_FEN} theme={theme} />
               <div className="flex items-center justify-between px-1 pb-1 pt-3 text-xs text-forge-muted">
                 <span className="chip">Najdorf · Sicilian</span>

@@ -54,7 +54,7 @@ function Header() {
 
   return (
     <header
-      className={`sticky top-0 z-40 border-b border-forge-line/70 bg-forge-bg/85 backdrop-blur-xl ${
+      className={`sticky top-0 z-40 border-b border-forge-line/70 bg-forge-bg/95 md:bg-forge-bg/85 md:backdrop-blur-xl ${
         compactGameHeader ? 'hidden md:block' : ''
       }`}
     >

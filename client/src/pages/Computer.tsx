@@ -215,7 +215,10 @@ export default function ComputerPage() {
             className="board-fit"
           />
 
-          <div className="mt-3 flex flex-wrap gap-2">
+          {/* The only place a game starts. It sits under the board so it is
+              reachable without scrolling on phones, where the setup card lands
+              below the board. */}
+          <div className="mt-3 flex flex-wrap items-center gap-2">
             {phase === 'playing' ? (
               <>
                 <button type="button" className="btn btn-secondary" onClick={takeback} disabled={moves.length < 2 || thinking}>
@@ -227,11 +230,12 @@ export default function ComputerPage() {
               </>
             ) : (
               <>
+                <span className="text-xs uppercase tracking-[0.12em] text-forge-faint">Play as</span>
                 <button type="button" className="btn btn-primary" onClick={() => startGame('w')}>
-                  Play as white
+                  White
                 </button>
                 <button type="button" className="btn btn-secondary" onClick={() => startGame('b')}>
-                  Play as black
+                  Black
                 </button>
               </>
             )}
@@ -303,15 +307,7 @@ export default function ComputerPage() {
               <p className="mt-1.5 text-xs text-forge-faint">{LEVELS.find((option) => option.value === level)?.hint}</p>
             </div>
 
-            <div className="mt-4 grid grid-cols-2 gap-2">
-              <button type="button" className="btn btn-primary" onClick={() => startGame('w')}>
-                White
-              </button>
-              <button type="button" className="btn btn-secondary" onClick={() => startGame('b')}>
-                Black
-              </button>
-            </div>
-            <p className="mt-3 text-[11px] text-forge-faint">
+            <p className="mt-4 text-[11px] text-forge-faint">
               Computer games are casual and unclocked. Finished games are archived for analysis.
             </p>
           </div>
