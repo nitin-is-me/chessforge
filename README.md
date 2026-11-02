@@ -150,6 +150,7 @@ every existing session.
 | 3.8.0   | **31-Oct-2026** | Integration tests against a real Postgres (skipped unless `RUN_DB_TESTS=1`), covering rating commits and single-use email tokens.                                                       |
 | 4.0.0   | **01-Nov-2026** | Final pass: the homepage now shows every time control instead of pushing a single 10+5, private games let you pick the mode, the footer credits the author and links the repo. Done.     |
 | 4.0.1   | **02-Nov-2026** | Phone pass. The board was dropping frames because of a fixed background, a shadow filter on all 32 pieces and a redraw on every render, so all of that went. Coordinates moved into a gutter (the letters were being painted on top of the bottom rank), and the computer page lost its duplicate start buttons. |
+| 4.1.0   | **02-Nov-2026** | Real sounds at last: recorded move, capture, check and castle clips instead of oscillators, and the loud piece-dropping start cue replaced with the old quiet chord. Games end with a colour-coded result banner that also shows the rating change, and the computer takes a beat to think instead of answering on the same frame as your move. |
 
 ## Running it yourself
 
@@ -180,3 +181,7 @@ something that lives in a browser.
 The bundled third-party bits keep their own licences: chessground (GPL-2.0+), the cburnett piece SVGs
 (GPL-2.0+) and Stockfish (GPL-3.0, full text in `client/public/engine/COPYING.txt`). Mixing GPL-3.0
 code in is exactly why the combined work can't just be MIT.
+
+The board sounds ship with PyChess and are licensed GPL-3.0-or-later. They're peak-normalised to sit
+at a consistent volume and live in `client/public/sounds`. Lichess's `standard` set is listed under
+its non-free exceptions, and its free sets are synthesised, so neither of those is used here.

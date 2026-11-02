@@ -3,6 +3,7 @@ import { Link } from 'react-router-dom';
 import { Chess } from 'chess.js';
 import { Board } from '../components/Board';
 import { MoveList } from '../components/MoveList';
+import { ResultBanner } from '../components/ResultBanner';
 import { engine } from '../lib/engine';
 import { playSound, type SoundName } from '../lib/sounds';
 import { useSession } from '../store/session';
@@ -22,6 +23,29 @@ const LEVELS = [
 ];
 
 type Phase = 'setup' | 'playing' | 'finished';
+
+/**
+ * How long the engine appears to think before it replies, in milliseconds.
+ *
+ * The search itself takes a few milliseconds at low levels, so without a floor
+ * the reply lands on the same frame as your move and it stops feeling like a
+ * game of chess. This only delays the reply — it does not weaken the engine.
+ * Edit these numbers to change the pace; the jitter keeps it from feeling like
+ * a metronome.
+ */
+const THINK_TIME_MS: Record<number, number> = {
+  1: 1000,
+  2: 950,
+  3: 900,
+  4: 850,
+  5: 800,
+  6: 750,
+  7: 700,
+  8: 650,
+};
+
+/** Extra random delay on top of THINK_TIME_MS[level], in milliseconds. */
+const THINK_JITTER_MS = 300;
 
 function soundFor(chess: Chess, san: string): SoundName {
   if (chess.isCheck()) return 'check';
@@ -105,6 +129,7 @@ export default function ComputerPage() {
 
     let cancelled = false;
     setThinking(true);
+    const thinkMs = (THINK_TIME_MS[level] ?? 800) + Math.random() * THINK_JITTER_MS;
     const timer = window.setTimeout(() => {
       engine
         .bestMove(chess.fen(), level)
@@ -130,7 +155,7 @@ export default function ComputerPage() {
         .finally(() => {
           if (!cancelled) setThinking(false);
         });
-    }, 220);
+    }, thinkMs);
 
     return () => {
       cancelled = true;
@@ -192,6 +217,7 @@ export default function ComputerPage() {
     if (phase !== 'playing') return;
     setOutcome({ result: playerColor === 'w' ? 'black' : 'white', reason: 'resignation' });
     setPhase('finished');
+    playSound('end');
   };
 
   const lastMove = moves.length > 0 ? moves[moves.length - 1] : null;
@@ -228,7 +254,7 @@ export default function ComputerPage() {
                   Resign
                 </button>
               </>
-            ) : (
+            ) : phase === 'setup' ? (
               <>
                 <span className="text-xs uppercase tracking-[0.12em] text-forge-faint">Play as</span>
                 <button type="button" className="btn btn-primary" onClick={() => startGame('w')}>
@@ -238,7 +264,7 @@ export default function ComputerPage() {
                   Black
                 </button>
               </>
-            )}
+            ) : null}
           </div>
 
           {engineError ? (
@@ -248,32 +274,28 @@ export default function ComputerPage() {
           ) : null}
 
           {outcome ? (
-            <div className="panel mt-4 p-4">
-              <h2 className="font-display text-2xl">
-                {outcome.result === 'draw'
-                  ? 'Draw'
-                  : (outcome.result === 'white') === (playerColor === 'w')
-                    ? 'You won'
-                    : 'The engine won'}
-              </h2>
-              <p className="text-sm text-forge-muted">by {outcome.reason.replace(/-/g, ' ')}</p>
-              <div className="mt-3 flex flex-wrap gap-2">
-                {savedGameId ? (
-                  <Link to={`/analysis/${savedGameId}`} className="btn btn-primary">
-                    Analyse with Stockfish
-                  </Link>
-                ) : session?.isGuest ? (
-                  <Link to="/signup" className="btn btn-secondary">
-                    Create an account to save this game
-                  </Link>
-                ) : (
-                  <span className="text-xs text-forge-faint">Saving game…</span>
-                )}
-                <button type="button" className="btn btn-ghost" onClick={() => setPhase('setup')}>
-                  New game
-                </button>
-              </div>
-            </div>
+            <ResultBanner
+              className="mt-4"
+              result={outcome.result}
+              myColor={playerColor}
+              reason={outcome.reason}
+              opponentLabel="The engine"
+            >
+              {savedGameId ? (
+                <Link to={`/analysis/${savedGameId}`} className="btn btn-primary">
+                  Analyse with Stockfish
+                </Link>
+              ) : session?.isGuest ? (
+                <Link to="/signup" className="btn btn-secondary">
+                  Create an account to save this game
+                </Link>
+              ) : (
+                <span className="self-center text-xs text-forge-faint">Saving game…</span>
+              )}
+              <button type="button" className="btn btn-ghost" onClick={() => setPhase('setup')}>
+                New game
+              </button>
+            </ResultBanner>
           ) : null}
         </div>
 

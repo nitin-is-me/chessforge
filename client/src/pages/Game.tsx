@@ -4,6 +4,7 @@ import { Board } from '../components/Board';
 import { PlayerBar } from '../components/PlayerBar';
 import { MoveList } from '../components/MoveList';
 import { GameActions } from '../components/GameActions';
+import { ResultBanner } from '../components/ResultBanner';
 import { ChatPanel } from '../components/ChatPanel';
 import { useGame } from '../store/game';
 import { usePreferences } from '../store/preferences';
@@ -766,6 +767,18 @@ export default function GamePage() {
             )}
           </div>
 
+          {finished ? (
+            <div className="shrink-0">
+              <ResultBanner
+                result={snapshot.result}
+                myColor={myColor}
+                reason={snapshot.reason}
+                delta={myDelta}
+                opponentLabel={opponent?.displayName}
+              />
+            </div>
+          ) : null}
+
           <div className="shrink-0">
             <GameActions snapshot={snapshot} myColor={myColor} onCopyPgn={() => void copyPgn()} />
           </div>
@@ -816,6 +829,15 @@ export default function GamePage() {
 
               {sheet === 'more' && (
                 <div className="min-h-0 flex-1 space-y-2 overflow-y-auto pb-2">
+                  {finished ? (
+                    <ResultBanner
+                      result={snapshot.result}
+                      myColor={myColor}
+                      reason={snapshot.reason}
+                      delta={myDelta}
+                      opponentLabel={opponent?.displayName}
+                    />
+                  ) : null}
                   <div className="flex gap-1.5">
                     <button
                       type="button"
