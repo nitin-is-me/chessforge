@@ -124,7 +124,7 @@ every existing session.
   (`RUN_DB_TESTS=1`), and a socket load-test script.
 
 ## Version History
-> Commit history isn't visible because i messed up with .git folder and it wasn't pushed to remote as well. Although you can see version history below for the same.
+> Development history: The original Git history was accidentally lost and could not be recovered. The version history below documents the project's major development milestones and releases.
 
 | Version | Date           | Summary                                                                                                                                                                                |
 | ------- | -------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
