@@ -326,9 +326,19 @@
   margin-inline: auto;
 }
 
+/* Same board column, with room reserved for the move-navigation row. */
+.game-board-col.has-move-nav {
+  width: min(100%, 680px, max(170px, calc(100dvh - 357px)));
+}
+
 @media (min-width: 768px) {
   .game-board-col {
     width: min(100%, 680px, max(170px, calc(100dvh - 4rem - 128px)));
+  }
+
+  /* The computer screen adds a move-navigation row under the board. */
+  .game-board-col.has-move-nav {
+    width: min(100%, 680px, max(170px, calc(100dvh - 4rem - 160px)));
   }
 }
 

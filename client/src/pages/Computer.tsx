@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { Chess } from 'chess.js';
 import { Board } from '../components/Board';
@@ -100,6 +100,54 @@ function NewGameIcon() {
   );
 }
 
+function FullscreenIcon() {
+  return (
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.9" className="h-4 w-4" aria-hidden>
+      <path d="M4 9V4h5M20 15v5h-5M4 15v5h5M20 9V4h-5" strokeLinecap="round" strokeLinejoin="round" />
+    </svg>
+  );
+}
+
+function ExitFullscreenIcon() {
+  return (
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.9" className="h-4 w-4" aria-hidden>
+      <path d="M9 4v5H4M15 20v-5h5M15 4v5h5M9 20v-5H4" strokeLinecap="round" strokeLinejoin="round" />
+    </svg>
+  );
+}
+
+function FirstIcon() {
+  return (
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className="h-3.5 w-3.5" aria-hidden>
+      <path d="M17 6 11 12l6 6M7 6v12" strokeLinecap="round" strokeLinejoin="round" />
+    </svg>
+  );
+}
+
+function PrevIcon() {
+  return (
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className="h-3.5 w-3.5" aria-hidden>
+      <path d="M15 6l-6 6 6 6" strokeLinecap="round" strokeLinejoin="round" />
+    </svg>
+  );
+}
+
+function NextIcon() {
+  return (
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className="h-3.5 w-3.5" aria-hidden>
+      <path d="M9 6l6 6-6 6" strokeLinecap="round" strokeLinejoin="round" />
+    </svg>
+  );
+}
+
+function LastIcon() {
+  return (
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className="h-3.5 w-3.5" aria-hidden>
+      <path d="M7 6l6 6-6 6M17 6v12" strokeLinecap="round" strokeLinejoin="round" />
+    </svg>
+  );
+}
+
 function ExpandIcon() {
   return (
     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.9" className="h-3.5 w-3.5" aria-hidden>
@@ -165,7 +213,85 @@ export default function ComputerPage() {
   const [engineError, setEngineError] = useState<string | null>(null);
   const [savedGameId, setSavedGameId] = useState<string | null>(null);
   const [sheet, setSheet] = useState<Sheet>(null);
+  const [fullscreen, setFullscreen] = useState(false);
+  // null follows the game; a number pins the board to an earlier ply. Taking
+  // back or starting again clears it so the board snaps back to the action.
+  const [reviewPly, setReviewPly] = useState<number | null>(null);
   const chessRef = useRef<Chess>(new Chess());
+
+  // Every position in the game, rebuilt from the move list so the review arrows
+  // can step through them without touching the live game state.
+  const positions = useMemo(() => {
+    const replay = new Chess();
+    const fens = [replay.fen()];
+    for (const move of moves) {
+      try {
+        replay.move({
+          from: move.uci.slice(0, 2) as never,
+          to: move.uci.slice(2, 4) as never,
+          promotion: move.uci.length > 4 ? (move.uci[4] as never) : undefined,
+        });
+        fens.push(replay.fen());
+      } catch {
+        fens.push(fens[fens.length - 1]);
+      }
+    }
+    return fens;
+  }, [moves]);
+
+  const viewPly = reviewPly === null ? moves.length : Math.min(reviewPly, moves.length);
+  const viewFen = positions[viewPly] ?? positions[0];
+  const viewMove = viewPly > 0 ? moves[viewPly - 1] : null;
+
+  const goToPly = (ply: number) => {
+    const clamped = Math.max(0, Math.min(moves.length, ply));
+    // Landing on the latest position resumes the live game.
+    setReviewPly(clamped === moves.length ? null : clamped);
+  };
+
+  useEffect(() => {
+    if (moves.length === 0) return;
+    const onKey = (event: KeyboardEvent) => {
+      const target = event.target as HTMLElement | null;
+      if (target && (target.tagName === 'INPUT' || target.tagName === 'TEXTAREA' || target.isContentEditable)) return;
+      if (event.key === 'ArrowLeft') {
+        event.preventDefault();
+        goToPly(viewPly - 1);
+      } else if (event.key === 'ArrowRight') {
+        event.preventDefault();
+        goToPly(viewPly + 1);
+      } else if (event.key === 'Home') {
+        event.preventDefault();
+        goToPly(0);
+      } else if (event.key === 'End') {
+        event.preventDefault();
+        goToPly(moves.length);
+      }
+    };
+    window.addEventListener('keydown', onKey);
+    return () => window.removeEventListener('keydown', onKey);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [viewPly, moves.length]);
+
+  // Fullscreen belongs to the browser tab, so mirror the real state instead of
+  // toggling a flag — Esc and the browser's own controls also end it.
+  useEffect(() => {
+    const syncFullscreen = () => setFullscreen(Boolean(document.fullscreenElement));
+    syncFullscreen();
+    document.addEventListener('fullscreenchange', syncFullscreen);
+    return () => document.removeEventListener('fullscreenchange', syncFullscreen);
+  }, []);
+
+  const canFullscreen = typeof document !== 'undefined' && Boolean(document.fullscreenEnabled);
+
+  const toggleFullscreen = () => {
+    if (document.fullscreenElement) {
+      void document.exitFullscreen().catch(() => undefined);
+      return;
+    }
+    if (!document.fullscreenEnabled) return;
+    void document.documentElement.requestFullscreen().catch(() => undefined);
+  };
 
   const record = (uci: string, san: string) => {
     setMoves((previous) => [
@@ -213,6 +339,7 @@ export default function ComputerPage() {
     setPlayerColor(color);
     setPhase('playing');
     setSheet(null);
+    setReviewPly(null);
     playSound('start');
   };
 
@@ -315,6 +442,7 @@ export default function ComputerPage() {
     setMoves((previous) => previous.slice(0, -2));
     setFen(chess.fen());
     setOutcome(null);
+    setReviewPly(null);
   };
 
   const resign = () => {
@@ -324,7 +452,6 @@ export default function ComputerPage() {
     playSound('end');
   };
 
-  const lastMove = moves.length > 0 ? moves[moves.length - 1] : null;
   const topColor = playerColor === 'w' ? 'b' : 'w';
   const thinkingNow = phase === 'playing' && thinking;
   const statusText =
@@ -384,10 +511,25 @@ export default function ComputerPage() {
               <span className="tabular-nums">Level {level}</span>
               <span className="truncate text-forge-faint">· {statusText}</span>
             </div>
+            <div className="flex shrink-0 items-center gap-0.5">
+              {canFullscreen || fullscreen ? (
+                <button
+                  type="button"
+                  className="btn btn-ghost !px-1.5 !py-1 text-[11px]"
+                  onClick={toggleFullscreen}
+                  title={fullscreen ? 'Exit full screen' : 'Full screen'}
+                  aria-label={fullscreen ? 'Exit full screen' : 'Full screen'}
+                  aria-pressed={fullscreen}
+                >
+                  {fullscreen ? <ExitFullscreenIcon /> : <FullscreenIcon />}
+                  <span className="hidden sm:inline">{fullscreen ? 'Exit' : 'Full screen'}</span>
+                </button>
+              ) : null}
+            </div>
           </div>
 
           <div className="flex min-h-0 flex-1 flex-col items-center justify-center">
-            <div className="game-board-col flex w-full flex-col gap-1">
+            <div className="game-board-col has-move-nav flex w-full flex-col gap-1">
               <PlayerRow
                 name="Stockfish"
                 detail={thinkingNow ? 'thinking…' : `Level ${level}`}
@@ -395,10 +537,10 @@ export default function ComputerPage() {
                 active={thinkingNow}
               />
               <Board
-                fen={fen}
+                fen={viewFen}
                 orientation={playerColor === 'w' ? 'white' : 'black'}
-                canMove={phase === 'playing' && !thinking}
-                lastMove={lastMove ? [lastMove.uci.slice(0, 2), lastMove.uci.slice(2, 4)] : null}
+                canMove={phase === 'playing' && !thinking && reviewPly === null}
+                lastMove={viewMove ? [viewMove.uci.slice(0, 2), viewMove.uci.slice(2, 4)] : null}
                 onMove={playMove}
                 theme={theme}
                 className="board-fit-game"
@@ -410,6 +552,58 @@ export default function ComputerPage() {
                 active={phase === 'playing' && !thinking}
                 isMe
               />
+
+              {/* Move navigation — under the board so it never covers a square */}
+              <div className="mt-0.5 flex shrink-0 items-center justify-center gap-1">
+                <button
+                  type="button"
+                  onClick={() => goToPly(0)}
+                  disabled={viewPly === 0}
+                  aria-label="First move"
+                  title="First move (Home)"
+                  className="grid h-7 w-8 place-items-center rounded-md border border-forge-line text-forge-muted transition-colors hover:text-forge-text disabled:opacity-30 disabled:hover:text-forge-muted"
+                >
+                  <FirstIcon />
+                </button>
+                <button
+                  type="button"
+                  onClick={() => goToPly(viewPly - 1)}
+                  disabled={viewPly === 0}
+                  aria-label="Previous move"
+                  title="Previous move (←)"
+                  className="grid h-7 w-8 place-items-center rounded-md border border-forge-line text-forge-muted transition-colors hover:text-forge-text disabled:opacity-30 disabled:hover:text-forge-muted"
+                >
+                  <PrevIcon />
+                </button>
+                <button
+                  type="button"
+                  onClick={() => goToPly(viewPly + 1)}
+                  disabled={viewPly >= moves.length}
+                  aria-label="Next move"
+                  title="Next move (→)"
+                  className="grid h-7 w-8 place-items-center rounded-md border border-forge-line text-forge-muted transition-colors hover:text-forge-text disabled:opacity-30 disabled:hover:text-forge-muted"
+                >
+                  <NextIcon />
+                </button>
+                <button
+                  type="button"
+                  onClick={() => goToPly(moves.length)}
+                  disabled={viewPly >= moves.length}
+                  aria-label="Latest move"
+                  title="Latest move (End)"
+                  className="grid h-7 w-8 place-items-center rounded-md border border-forge-line text-forge-muted transition-colors hover:text-forge-text disabled:opacity-30 disabled:hover:text-forge-muted"
+                >
+                  <LastIcon />
+                </button>
+                <span
+                  className={`ml-1 min-w-[54px] text-center font-mono text-[11px] tabular-nums ${
+                    reviewPly === null ? 'text-forge-faint' : 'text-forge-accent'
+                  }`}
+                  aria-live="polite"
+                >
+                  {viewPly} / {moves.length}
+                </span>
+              </div>
             </div>
           </div>
 
@@ -488,7 +682,7 @@ export default function ComputerPage() {
               <span className="text-[10px] font-semibold uppercase tracking-[0.12em] text-forge-muted">Moves</span>
               <span className="text-[10px] text-forge-faint">{moves.length} played</span>
             </div>
-            <MoveList moves={moves} fill />
+            <MoveList moves={moves} currentPly={viewPly || null} onSelect={goToPly} fill />
           </div>
 
           {outcome ? (
@@ -592,7 +786,7 @@ export default function ComputerPage() {
                 levelPicker
               ) : (
                 <div className="flex min-h-0 flex-1 flex-col overflow-hidden">
-                  <MoveList moves={moves} fill />
+                  <MoveList moves={moves} currentPly={viewPly || null} onSelect={goToPly} fill />
                 </div>
               )}
             </div>
