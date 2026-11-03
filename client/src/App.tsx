@@ -47,9 +47,12 @@ function NavItem({ to, children }: { to: string; children: React.ReactNode }) {
 function Header() {
   const { user, guest, loading, logout } = useSession();
   const location = useLocation();
-  // The game screen owns its own slim top strip on phones so the board gets the space.
+  // The game, computer and analysis screens own their slim top strip on phones so
+  // the board gets the space.
   const compactGameHeader =
-    location.pathname.startsWith('/g/') || location.pathname === '/computer';
+    location.pathname.startsWith('/g/') ||
+    location.pathname === '/computer' ||
+    location.pathname.startsWith('/analysis/');
   const rating = user?.ratings.blitz?.rating ?? user?.ratings.rapid?.rating ?? user?.ratings.bullet?.rating;
   const category = user?.ratings.blitz ? 'blitz' : user?.ratings.rapid ? 'rapid' : 'bullet';
 
@@ -176,7 +179,11 @@ export default function App() {
   const [incomingChallenge, setIncomingChallenge] = useState<ChallengeView | null>(null);
   const navigate = useNavigate();
   const location = useLocation();
-  const isGamePage = location.pathname.startsWith('/g/') || location.pathname === '/computer';
+  // Screens that fill the viewport and draw their own chrome: no footer under them.
+  const isGamePage =
+    location.pathname.startsWith('/g/') ||
+    location.pathname === '/computer' ||
+    location.pathname.startsWith('/analysis/');
 
   useEffect(() => {
     void bootstrap();

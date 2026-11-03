@@ -167,6 +167,7 @@ export class GameManager {
       white,
       black,
       now,
+      opponent: options.opponent ?? 'human',
     });
 
     await prisma.game.create({
@@ -301,6 +302,8 @@ export class GameManager {
       white: makePlayer(row.whiteId, row.whiteRating),
       black: makePlayer(row.blackId, row.blackRating),
       now,
+      opponent: row.opponent === OpponentType.COMPUTER ? 'computer' : 'human',
+      engineLevel: row.engineLevel ?? null,
       createdAt: row.createdAt.getTime(),
       status:
         row.status === DbGameStatus.FINISHED

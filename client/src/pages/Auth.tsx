@@ -65,7 +65,7 @@ export function LoginPage() {
       footer={
         <>
           New here?{' '}
-          <Link to="/signup" className="link">
+          <Link to="/signup" state={{ from }} className="link">
             Create an account
           </Link>
         </>
@@ -113,12 +113,15 @@ export function LoginPage() {
 
 export function SignupPage() {
   const navigate = useNavigate();
+  const location = useLocation();
   const setUser = useSession((state) => state.setUser);
   const [username, setUsername] = useState('');
   const [password, setPassword] = useState('');
   const [email, setEmail] = useState('');
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
+  // A guest who was reviewing a game lands back on it, so the game can be kept.
+  const from = (location.state as LocationState | null)?.from;
 
   const submit = async (event: FormEvent) => {
     event.preventDefault();
@@ -127,7 +130,7 @@ export function SignupPage() {
     try {
       const result = await api.signup(username.trim(), password, email.trim() || undefined);
       setUser(result.user);
-      navigate('/welcome', { replace: true });
+      navigate(from ?? '/welcome', { replace: true });
     } catch (err) {
       setError(err instanceof ApiError ? err.message : 'Could not create the account');
     } finally {
@@ -142,7 +145,7 @@ export function SignupPage() {
       footer={
         <>
           Already have an account?{' '}
-          <Link to="/login" className="link">
+          <Link to="/login" state={{ from }} className="link">
             Sign in
           </Link>
         </>

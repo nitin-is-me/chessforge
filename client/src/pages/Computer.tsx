@@ -10,7 +10,9 @@ import { playSound, type SoundName } from '../lib/sounds';
 import { useSession } from '../store/session';
 import { usePreferences } from '../store/preferences';
 import { api } from '../lib/api';
-import type { MoveRecord } from '@shared/protocol';
+import { saveLocalAnalysisGame } from '../lib/localAnalysis';
+import type { EndReason, GameResult, MoveRecord } from '@shared/protocol';
+import { classifyTimeControl } from '@shared/timeControl';
 
 const LEVELS = [
   { value: 1, label: 'Level 1', hint: 'Learning the pieces' },
@@ -196,8 +198,8 @@ function PlayerRow({
 }
 
 interface Outcome {
-  result: 'white' | 'black' | 'draw';
-  reason: string;
+  result: GameResult;
+  reason: EndReason;
 }
 
 export default function ComputerPage() {
@@ -212,6 +214,8 @@ export default function ComputerPage() {
   const [outcome, setOutcome] = useState<Outcome | null>(null);
   const [engineError, setEngineError] = useState<string | null>(null);
   const [savedGameId, setSavedGameId] = useState<string | null>(null);
+  // Guests have no server archive, so their finished game is kept in this tab instead.
+  const [localGameId, setLocalGameId] = useState<string | null>(null);
   const [sheet, setSheet] = useState<Sheet>(null);
   const [fullscreen, setFullscreen] = useState(false);
   // null follows the game; a number pins the board to an earlier ply. Taking
@@ -310,7 +314,7 @@ export default function ComputerPage() {
   const finishIfOver = (chess: Chess): boolean => {
     if (!chess.isGameOver()) return false;
     let result: Outcome['result'] = 'draw';
-    let reason = 'stalemate';
+    let reason: EndReason = 'stalemate';
     if (chess.isCheckmate()) {
       result = chess.turn() === 'w' ? 'black' : 'white';
       reason = 'checkmate';
@@ -335,6 +339,7 @@ export default function ComputerPage() {
     setMoves([]);
     setOutcome(null);
     setSavedGameId(null);
+    setLocalGameId(null);
     setEngineError(null);
     setPlayerColor(color);
     setPhase('playing');
@@ -406,6 +411,32 @@ export default function ComputerPage() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [phase, outcome, moves, level, playerColor, session, savedGameId]);
 
+  // Guests get no server archive: keep the finished game in this tab so the
+  // analysis page can review it without asking them to make an account.
+  useEffect(() => {
+    if (phase !== 'finished' || !outcome || localGameId) return;
+    if (session && !session.isGuest) return;
+    const playerName = session?.displayName ?? 'You';
+    const engineName = `Stockfish level ${level}`;
+    const baseSec = 600;
+    setLocalGameId(
+      saveLocalAnalysisGame({
+        moves,
+        fen: positions[positions.length - 1] ?? new Chess().fen(),
+        baseSec,
+        incSec: 0,
+        category: classifyTimeControl({ baseSec, incSec: 0 }),
+        engineLevel: level,
+        playerColor,
+        whiteName: playerColor === 'w' ? playerName : engineName,
+        blackName: playerColor === 'w' ? engineName : playerName,
+        result: outcome.result,
+        reason: outcome.reason,
+      }),
+    );
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [phase, outcome, moves, level, playerColor, session, localGameId]);
+
   useEffect(() => {
     if (!sheet) return;
     const onKey = (event: KeyboardEvent) => {
@@ -463,6 +494,12 @@ export default function ComputerPage() {
         ? 'Game over'
         : 'Ready to start';
   const levelHint = LEVELS.find((option) => option.value === level)?.hint ?? '';
+  // Archived games for accounts, the tab-local copy for guests.
+  const analysisHref = localGameId
+    ? `/analysis/${localGameId}`
+    : savedGameId
+      ? `/analysis/${savedGameId}`
+      : null;
 
   const levelPicker = (
     <>
@@ -658,8 +695,8 @@ export default function ComputerPage() {
                     setOutcome(null);
                   }}
                 />
-                {savedGameId ? (
-                  <DockButton to={`/analysis/${savedGameId}`} label="Analyse" icon={<span className="font-display text-[13px] leading-none">⤢</span>} />
+                {analysisHref ? (
+                  <DockButton to={analysisHref} label="Analyse" icon={<span className="font-display text-[13px] leading-none">⤢</span>} />
                 ) : null}
               </>
             )}
@@ -694,17 +731,22 @@ export default function ComputerPage() {
                 reason={outcome.reason}
                 opponentLabel="The engine"
               >
-                {savedGameId ? (
-                  <Link to={`/analysis/${savedGameId}`} className="btn btn-secondary !py-1.5 !text-xs">
+                {analysisHref ? (
+                  <Link to={analysisHref} className="btn btn-secondary !py-1.5 !text-xs">
                     Analyse with Stockfish
                   </Link>
-                ) : session?.isGuest ? (
-                  <Link to="/signup" className="btn btn-ghost !py-1.5 !text-xs">
-                    Save this game
-                  </Link>
-                ) : (
+                ) : !session || session.isGuest ? null : (
                   <span className="self-center text-[11px] text-forge-faint">Saving game…</span>
                 )}
+                {session?.isGuest ? (
+                  <Link
+                    to="/signup"
+                    state={{ from: analysisHref ?? '/computer' }}
+                    className="btn btn-ghost !py-1.5 !text-xs"
+                  >
+                    Save this game
+                  </Link>
+                ) : null}
               </ResultBanner>
             </div>
           ) : null}

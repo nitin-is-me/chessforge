@@ -99,7 +99,7 @@ export default function SettingsPage() {
                 <span
                   className="block h-16 w-full"
                   style={{
-                    backgroundImage: `conic-gradient(${theme.light} 25%, ${theme.dark} 0 50%, ${theme.light} 0 75%, ${theme.dark} 0)`,
+                    backgroundImage: `conic-gradient(${theme.dark} 25%, ${theme.light} 0 50%, ${theme.dark} 0 75%, ${theme.light} 0)`,
                     backgroundSize: '25% 25%',
                   }}
                 />

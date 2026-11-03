@@ -45,12 +45,15 @@ export function reasonText(reason: EndReason | null): string {
   }
 }
 
-export function resultHeadline(snapshot: GameSnapshot, myColor: 'w' | 'b' | null): string {
-  if (snapshot.status === 'aborted') return 'Game aborted';
-  if (snapshot.status !== 'finished' || !snapshot.result) return 'Game over';
-  if (snapshot.result === 'draw') return 'Draw';
-  if (!myColor) return snapshot.result === 'white' ? 'White wins' : 'Black wins';
-  const iWon = (snapshot.result === 'white') === (myColor === 'w');
+export function resultHeadline(
+  game: Pick<GameSnapshot, 'status' | 'result'>,
+  myColor: 'w' | 'b' | null,
+): string {
+  if (game.status === 'aborted') return 'Game aborted';
+  if (game.status !== 'finished' || !game.result) return 'Game over';
+  if (game.result === 'draw') return 'Draw';
+  if (!myColor) return game.result === 'white' ? 'White wins' : 'Black wins';
+  const iWon = (game.result === 'white') === (myColor === 'w');
   return iWon ? 'You won' : 'You lost';
 }
 

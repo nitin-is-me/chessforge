@@ -358,6 +358,38 @@
   }
 }
 
+/* Analysis screen: the board, the grade for the selected move and the move list
+   have to be readable at the same time, so the page is locked to the viewport
+   the way a live game is instead of growing past it and scrolling. */
+.analysis-shell {
+  /* 4rem header + its 1px rule */
+  height: calc(100dvh - 4rem - 1px);
+  overflow: hidden;
+  overscroll-behavior: none;
+}
+
+@media (max-width: 767px) {
+  .analysis-shell {
+    /* Phones drop the site header for the page's own compact strip. */
+    height: 100dvh;
+  }
+}
+
+/* Board column: reserve the strip, navigation row, evaluation graph and a slice
+   of the move list, then hand the rest of the height to the board. */
+.analysis-board-col {
+  width: min(100%, 620px, max(150px, calc(100dvh - 360px)));
+  margin-inline: auto;
+}
+
+@media (min-width: 768px) {
+  /* On tablet and desktop the move list sits beside the board, so the board only
+     has to leave room for its own strip, controls and graph. */
+  .analysis-board-col {
+    width: min(100%, 680px, max(200px, calc(100dvh - 4rem - 210px)));
+  }
+}
+
 /* When board-area has a defined container height (desktop or constrained flex),
    fit dynamically to both width and height without ANY overflow */
 @container (min-height: 150px) {
@@ -373,12 +405,18 @@
   height: 100%;
 }
 
+/* Checkerboard built from one 2x2 tile. A conic gradient starts at 12 o'clock
+   and runs clockwise, so the stops are the tile's top-right, bottom-right,
+   bottom-left and top-left quadrants: b8 dark, b7 light, a7 dark, a8 light.
+   That makes a1 dark and h1 light, and a 180° turn leaves the pattern
+   unchanged, so it stays correct when the board is flipped. Pinned by
+   tests/board-colors.test.ts. */
 .board-shell cg-board {
   background-image: conic-gradient(
-    var(--board-light, #cbb79a) 25%,
-    var(--board-dark, #7c6549) 0 50%,
-    var(--board-light, #cbb79a) 0 75%,
-    var(--board-dark, #7c6549) 0
+    var(--board-dark, #7c6549) 25%,
+    var(--board-light, #cbb79a) 0 50%,
+    var(--board-dark, #7c6549) 0 75%,
+    var(--board-light, #cbb79a) 0
   );
   background-size: 25% 25%;
   background-position: 0 0;

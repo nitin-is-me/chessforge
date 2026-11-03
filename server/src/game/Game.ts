@@ -87,6 +87,9 @@ export interface GameInit {
   createdAt?: number;
   chatState?: ChatState;
   chatMessages?: ChatMessageView[];
+  /** Archived computer games are rehydrated for review, so the seat matters. */
+  opponent?: 'human' | 'computer';
+  engineLevel?: number | null;
 }
 
 export function createPlayerState(input: {
@@ -122,6 +125,8 @@ export class Game {
   readonly baseSec: number;
   readonly incSec: number;
   readonly policy: LagPolicy;
+  readonly opponent: 'human' | 'computer';
+  readonly engineLevel: number | null;
   readonly chess = new Chess();
 
   white: PlayerState | null;
@@ -162,6 +167,8 @@ export class Game {
     this.baseSec = init.baseSec;
     this.incSec = init.incSec;
     this.policy = LAG_POLICY[init.category];
+    this.opponent = init.opponent ?? 'human';
+    this.engineLevel = init.engineLevel ?? null;
     this.white = init.white;
     this.black = init.black;
     this.status = init.status ?? 'waiting';
@@ -635,8 +642,8 @@ export class Game {
       category: this.category,
       baseSec: this.baseSec,
       incSec: this.incSec,
-      opponent: 'human',
-      engineLevel: null,
+      opponent: this.opponent,
+      engineLevel: this.engineLevel,
       white: Game.playerView(this.white),
       black: Game.playerView(this.black),
       fen: this.chess.fen(),
