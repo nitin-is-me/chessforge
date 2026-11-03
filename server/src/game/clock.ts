@@ -3,8 +3,20 @@
  *
  * A crude "subtract the round-trip time" scheme is exploitable: a player can
  * inflate their round trip and get free thinking time. ChessForge instead
- * grants each side a fixed lag quota. Compensation per move is capped, and the
- * quota refills slowly, so a cheater gains at most a few seconds per game.
+ * grants each side a lag quota that is a per-game budget: compensation per move
+ * is capped, and the quota refills slowly with each completed move, so a
+ * cheater gains at most the budget across a whole game.
+ *
+ * The budget is sized as a slice of the time control rather than a flat number
+ * of milliseconds. Every move a player makes costs them one round trip of wall
+ * clock (the opponent's move travelling to them, plus theirs travelling back),
+ * and that cost repeats for the entire game. A flat budget is steady-state
+ * unfair: at 150 ms RTT each move consumed 150 ms of an 800 ms bullet quota and
+ * refilled only 50 ms, so the quota was empty after about six moves and every
+ * later move was billed its full round trip. A fast bullet player then bled a
+ * couple of seconds of clock over the board while doing nothing wrong. Sizing
+ * the budget to the game keeps an honest connection covered while still
+ * bounding what anyone can extract from a deliberately inflated one.
  *
  * All functions are pure: they take `elapsedMs` rather than reading a clock,
  * which keeps them deterministic and unit-testable.
@@ -14,7 +26,7 @@ import type { TimeCategory } from '@shared/timeControl.js';
 export interface LagPolicy {
   /** Maximum compensation granted for a single move. */
   perMoveCapMs: number;
-  /** Total compensation available across a game. */
+  /** Total compensation available across a game (the anti-farm ceiling). */
   quotaMaxMs: number;
   /** Quota regained after each completed move. */
   regainPerMoveMs: number;
@@ -23,10 +35,14 @@ export interface LagPolicy {
 }
 
 export const LAG_POLICY: Record<TimeCategory, LagPolicy> = {
-  bullet: { perMoveCapMs: 200, quotaMaxMs: 800, regainPerMoveMs: 50, absenceClaimSec: 20 },
-  blitz: { perMoveCapMs: 400, quotaMaxMs: 1500, regainPerMoveMs: 100, absenceClaimSec: 30 },
-  rapid: { perMoveCapMs: 1000, quotaMaxMs: 4000, regainPerMoveMs: 200, absenceClaimSec: 60 },
-  classical: { perMoveCapMs: 1000, quotaMaxMs: 4000, regainPerMoveMs: 200, absenceClaimSec: 60 },
+  // Budgets are roughly 10% of a typical base time for the category, which is
+  // enough to cover one honest round trip on every move of a long game (40
+  // moves at 150 ms RTT needs 6 s) while capping what an inflated connection can
+  // ever buy.
+  bullet: { perMoveCapMs: 200, quotaMaxMs: 6_000, regainPerMoveMs: 50, absenceClaimSec: 20 },
+  blitz: { perMoveCapMs: 400, quotaMaxMs: 9_000, regainPerMoveMs: 100, absenceClaimSec: 30 },
+  rapid: { perMoveCapMs: 1000, quotaMaxMs: 12_000, regainPerMoveMs: 200, absenceClaimSec: 60 },
+  classical: { perMoveCapMs: 1000, quotaMaxMs: 12_000, regainPerMoveMs: 200, absenceClaimSec: 60 },
 };
 
 /** Every completed move costs at least this much clock time (anti-free-move). */

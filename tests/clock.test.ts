@@ -75,7 +75,7 @@ describe('lag compensation', () => {
 
   it('bounds compensation per move even when every move is slow', () => {
     let remaining = 60_000;
-    let quota = 1500;
+    let quota = blitz.quotaMaxMs;
     let compensated = 0;
     for (let i = 0; i < 10; i++) {
       const charge = settleMove({
@@ -93,7 +93,56 @@ describe('lag compensation', () => {
     }
     // 10 moves of wall time were charged, minus a bounded lag allowance.
     expect(remaining).toBeGreaterThan(30_000);
-    expect(compensated).toBeLessThan(3_000);
+    expect(compensated).toBeLessThanOrEqual(10 * blitz.perMoveCapMs);
+  });
+
+  it('caps total compensation across a whole game', () => {
+    const bullet = LAG_POLICY.bullet;
+    let remaining = 600_000;
+    let quota = bullet.quotaMaxMs;
+    let compensated = 0;
+
+    // 200 deliberate 5-second moves: the most a farmer could try to extract.
+    for (let i = 0; i < 200; i++) {
+      const charge = settleMove({
+        remainingMs: remaining,
+        quotaMs: quota,
+        elapsedMs: 5000,
+        incrementMs: 0,
+        policy: bullet,
+      });
+      remaining = charge.remainingMs;
+      quota = charge.quotaMs;
+      compensated += charge.compensationMs;
+    }
+
+    expect(compensated).toBeLessThanOrEqual(bullet.quotaMaxMs + 200 * bullet.regainPerMoveMs);
+  });
+});
+
+describe('sustained latency', () => {
+  it('does not bleed clock for instant replies at 150ms RTT in bullet', () => {
+    const bullet = LAG_POLICY.bullet;
+    let remaining = 60_000;
+    let quota = bullet.quotaMaxMs;
+
+    // 40 instant replies: wall time is all network, so nothing should be billed.
+    for (let i = 0; i < 40; i++) {
+      const charge = settleMove({
+        remainingMs: remaining,
+        quotaMs: quota,
+        elapsedMs: 150,
+        incrementMs: 0,
+        policy: bullet,
+      });
+      remaining = charge.remainingMs;
+      quota = charge.quotaMs;
+    }
+
+    // Only the anti-free-move floor per move, never a round trip.
+    expect(60_000 - remaining).toBe(40 * MIN_CHARGED_MS);
+    expect(quota).toBeGreaterThan(0);
+    expect(hasFlagged(remaining, quota, 150, bullet)).toBe(false);
   });
 });
 
