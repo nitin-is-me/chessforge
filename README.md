@@ -4,8 +4,8 @@
 
 ChessForge is a **free, ad-free, open-source chess platform** that I built mostly for fun. I wanted a
 chess site that gets out of the way: no ads, no popups, no "sign up to see your accuracy". The clock
-is owned by the server, a dropped connection doesn't lose you the game, and the engine review runs
-entirely on your own machine. <br>
+is owned by the server, a short connection drop doesn't automatically forfeit the game, and the engine
+review runs entirely on your own machine. <br>
 > **The whole thing is open source, so you can read every line that decides your rating.**
 
 I honestly started this as a weekend toy to see whether I could get server-side clocks right, then I
@@ -23,10 +23,10 @@ later.
 ## Features
 
 ### Play without making an account
-You can sit down and play in two clicks. Guests get their own identity, their own games and their own
-30-day history, no email, no username picking, no "verify to continue". The only thing guests can't
-do is play **rated** games, because a rating attached to a throwaway identity is just noise. Create an
-account later and your ratings start fresh at 1500.
+You can sit down and play in two clicks. Guests get their own identity and their own games, no email,
+no username picking, no "verify to continue". The only thing guests can't do is play **rated** games,
+because a rating attached to a throwaway identity is just noise. Create an account later and your
+ratings start fresh at 1500.
 
 ### Pick your pace, not mine
 Ten time controls from 1+0 bullet to 30+0 classical, grouped into the usual four categories. Quick
@@ -47,15 +47,16 @@ ones get archived so you can run the analysis on them later.
 
 ### The clock belongs to the server
 Every move is replayed server-side with chess.js before it's accepted, and each side has an
-authoritative remaining time. A move is charged `elapsed - compensation + increment`, and the number
-on your screen uses the exact same formula, so what you see is what's enforced. Refresh the tab
-mid-game and you come back to the same position and the same clock, not a resignation.
+authoritative remaining time. A move is charged `max(10 ms, elapsed - compensation)`, then the
+increment is added. The on-screen clock uses the same compensation rule, with the server applying the
+final minimum charge. Refresh the tab mid-game and you come back to the same position and the correct
+live clock, not a resignation.
 
 ### Lag compensation that can't be farmed
 This was the most fun part to get right. Subtracting raw ping means a cheater can *inflate* their ping
 for free thinking time, so instead each side gets a lag quota that gets spent on compensation, capped
-per move (200 ms bullet, 400 ms blitz, 1000 ms rapid) and refunded slowly afterwards. One bad move
-can never buy you more than the cap.
+per move (200 ms bullet, 400 ms blitz, 1000 ms rapid and classical) and refunded slowly afterwards.
+One bad move can never buy you more than the cap.
 
 ### Chat that asks first
 Chat is consent-based. Your opponent has to accept before a single message is delivered, which
@@ -69,7 +70,9 @@ win if your opponent vanishes, and rematch instantly with colours swapped. PGN e
 
 ### Friends, presence and challenges
 Add friends by username, see whether they're online or in a game, and challenge them directly with a
-time control. Blocking works too, and blocks are respected everywhere rather than just on one screen.
+time control. Blocking works too: blocks are checked for friend requests, challenges, pool matching
+and joining a waiting room. Accepting an existing challenge and spectating an already-started game are
+the exceptions.
 
 ### Engine review, locally
 Stockfish runs in a Web Worker on your machine, so there's no server CPU bill and no cross-origin
@@ -82,28 +85,32 @@ the published formulas rather than something I made up.
 ### Ratings that actually mean something
 Glicko-2, one rating period per game, applied separately per category (bullet / blitz / rapid /
 classical), because being 1800 at bullet and 1200 at classical shouldn't average out to nonsense.
-Everyone starts at 1500 with RD 350, provisional ratings are marked with a `?`, and a game only counts
-if both players are registered, it isn't classical, and at least two plies were actually played.
+Everyone starts at 1500 with RD 350, provisional ratings are marked with a `?`, and a rated game only
+counts if both players are registered, it isn't classical, and it wasn't aborted. That gives a two-ply
+floor in normal play; the exception is an absence claim, which can settle after one ply.
 
 ### Restart-safe games
 Unfinished games live in Postgres with every move and clock value. On boot the server replays them and
-resumes each clock *after a 30 second grace*, so a deploy or a crash is never adjudicated as a loss for
-whoever happened to be playing.
+resumes each clock *after a 30 second grace*, so a restart is not automatically adjudicated as a loss.
+The grace applies to server restarts; a browser reconnect does not pause the clock.
 
 ### Boards and sounds that stay quiet
-Three board palettes (Forge, Midnight, Sand), synthesised move/capture/check sounds instead of shipped
-audio files, and every preference saved locally on your device.
+Three board palettes (Forge, Midnight, Sand), recorded move/capture/check/castle/illegal clips from the
+PyChess sound pack plus synthesised start/end/chat/notify cues, and every preference saved locally on
+your device.
 
 ### Email, but only if you want it
 No account needs an email. If you do add one, verification and password reset go through Brevo, the
-token is single-use, expires in 30 minutes, only its SHA-256 is stored, and a password reset kills
-every existing session.
+token is single-use, verification links last 24 hours, reset links last 30 minutes, only the token's
+SHA-256 is stored, and a password reset kills every existing session.
 
 > [!NOTE]
-> **Server-authoritative, and nothing else**: moves, clocks, ratings and results are never trusted
-> from the browser. Spectators get the same snapshots as players, and rejoining a game re-attaches to
-> a fresh snapshot rather than replaying client state. The one thing that intentionally leaves your
-> machine is a move you make. Engine review never does.
+> **Server-authoritative for live games**: moves, clocks, ratings and results are never trusted from
+> the browser. Spectators get a fresh snapshot, with a few viewer-specific fields; live snapshots also
+> include room chat, so a spectator in the room can see it. Archived computer games are the exception:
+> the server replay-checks the moves but accepts the client's claimed result and stores the game as
+> casual. Live play sends only the moves, chat and actions you choose. Engine review never sends a
+> position anywhere.
 
 ## For nerds
 
@@ -111,14 +118,16 @@ every existing session.
   of client state, React Router for the routes.
 - **Backend**: Node with Express 5 and Socket.IO 4 in a single process. Strict TypeScript across
   client, server and shared code.
-- **Database**: Postgres with Prisma. Moves and clock values are persisted in one transaction with the
-  move itself, so a crash can't leave a half-applied move.
+- **Database**: Postgres with Prisma. Moves and clock values are written in one transaction with the
+  move itself, so the write cannot half-apply. The move is broadcast before that transaction commits,
+  so a crash can still lose the last broadcast move.
 - **Rules**: chess.js replays every position server-side before anything is broadcast.
 - **Ratings**: a pure Glicko-2 module (no I/O), checked against Glickman's worked examples in
   `tests/glicko2.test.ts`.
 - **Security**: random 256-bit session ids in an `HttpOnly`, `SameSite=Lax` cookie with only the hash
-  stored, scrypt passwords, an `Origin` check on every state-changing request, per-account and
-  per-socket rate limits, and a Helmet CSP in production.
+  stored, scrypt passwords, an `Origin` check on state-changing requests that rejects foreign origins
+  (requests with no `Origin` header are allowed), mostly per-IP HTTP rate limits, per-socket limits on
+  game actions, and a Helmet CSP in production.
 - **Engine**: Stockfish 19 lite (single-threaded WASM) in a Web Worker, served from the same origin.
 - **Hosting**: `render.yaml` for Render, plus a `Dockerfile` for anywhere else. Run it as a single
   instance, because flag timers live in process memory.
@@ -135,7 +144,7 @@ every existing session.
 | 1.2.0   | **27-May-2026** | Accounts: scrypt password hashing and cookie sessions where only the SHA-256 of the token is stored.                                                                                    |
 | 1.3.0   | **10-Jun-2026** | The clock and the rules engine. Every move gets replayed server-side with chess.js before it counts.                                                                                   |
 | 1.3.1   | **18-Jun-2026** | Wrote the clock and rules tests after one too many "it works on my machine" moments.                                                                                                    |
-| 1.4.0   | **22-Jun-2026** | Email verification and password reset through Brevo. Single-use tokens, hashed, 30 minute expiry, reset kills all sessions.                                                            |
+| 1.4.0   | **22-Jun-2026** | Email verification and password reset through Brevo. Single-use tokens, hashed, 30 minute expiry, reset kills all sessions. (Verification links now last 24 hours; reset links still expire after 30 minutes.)                                                            |
 | 1.5.0   | **29-Jun-2026** | Glicko-2. Checked against the published worked example before I trusted it with anyone's rating.                                                                                        |
 | 1.6.0   | **11-Jul-2026** | Rating-windowed pools and the game manager (seating, flag timers, restart recovery).                                                                                                    |
 | 2.0.0   | **27-Jul-2026** | BIG UPDATE: it's actually multiplayer now. Socket layer for moves, clocks, resign and rematch, plus presence, the REST API for rooms/friends/reports, and metrics.                      |
@@ -155,7 +164,7 @@ every existing session.
 | 4.1.0   | **02-Nov-2026** | Real sounds at last: recorded move, capture, check and castle clips instead of oscillators, and the loud piece-dropping start cue replaced with the old quiet chord. Games end with a colour-coded result banner that also shows the rating change, and the computer takes a beat to think instead of answering on the same frame as your move. |
 | 4.2.0   | **02-Nov-2026** | UX pass. The game screen is now one locked viewport on phone and desktop, with no page scrolling: result banners can be dismissed, the phone dock carries the main actions and the More sheet is grouped and thumb-sized, chat and draw offers finally sound different, and there's a fullscreen toggle. The computer screen uses the same fixed layout, challenges ask which time control to send, a declined challenge tells the challenger instead of leaving "Sent" hanging, and the friends list shows a skeleton instead of claiming you have no friends while it loads. |
 | 4.3.0   | **03-Nov-2026** | Computer games get the fullscreen toggle they were missing, and the computer board gains move navigation: first, previous, next and latest buttons under the board, arrow and Home/End keys, and a move list you can click to jump to any ply. Stepping back pauses board input until you return to the live position, and the layout reserves room for the extra row on phone and desktop. |
-| 4.3.1   | **03-Nov-2026** | Lag compensation was quietly punishing honest bullet players. The quota was a flat 800 ms pool refilling 50 ms a move, so at 150 ms round-trip it was empty after about six moves and every later move was billed its full network time, costing roughly five seconds over a 1+0 game. The quota is now a per-game budget sized to the time control (6 s bullet, 9 s blitz, 12 s rapid and classical), still capped per move and still bounded in total. |
+| 4.3.1   | **03-Nov-2026** | Lag compensation was quietly punishing honest bullet players. The quota was a flat 800 ms pool refilling 50 ms a move, so at 150 ms round-trip it was empty after about six moves and every later move was billed its full network time, costing roughly five seconds over a 1+0 game. The quota is now a per-game budget sized to the time control (6 s bullet, 9 s blitz, 12 s rapid and classical), still capped per move, with the quota itself bounded. |
 
 ## Running it yourself
 
@@ -171,10 +180,12 @@ npm run dev                 # server on :3000, client on :5173
 Open <http://localhost:5173>. For a production-style run, `npm run build && npm start` serves the
 built client and the API from a single process on `:3000`.
 
-The only variables you genuinely need are `DATABASE_URL` and `APP_ORIGIN` (plus `SESSION_SECRET` in
-production). `DIRECT_URL` helps if your host gives you a pooler, `EMAIL_API_KEY` and the `EMAIL_*`
-variables turn on verification and reset mail, and `METRICS_TOKEN` protects `/api/metrics`. With the
-email variables unset everything else still works, accounts just can't verify or recover.
+The important variables are `DATABASE_URL`, `APP_ORIGIN` (which defaults to localhost), and in
+production `SESSION_SECRET`. That last one is currently a deployment guard rather than a cryptographic
+key; sessions use random tokens and SHA-256 storage. `DIRECT_URL` helps if your host gives you a
+pooler, `EMAIL_API_KEY` and the `EMAIL_*` variables turn on verification and reset mail, and
+`METRICS_TOKEN` protects `/api/metrics`. With the email variables unset everything else still works,
+accounts just can't verify or recover.
 
 ## Licence
 
